@@ -1,0 +1,374 @@
+.fade-animation {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slide-animation {
+  animation: slideIn 0.5s ease-in-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.zoom-animation {
+  animation: zoomIn 0.5s ease-in-out;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.bounce-animation {
+  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.scrollable-media {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  gap: 16px;
+  padding: 16px;
+}
+
+.scrollable-media::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scrollable-media::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable-media::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.scrollable-media img,
+.scrollable-media video {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.scrollable-media img:hover,
+.scrollable-media video:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.dialog-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: hidden;
+  min-height: 60vh;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-animation {
+  opacity: 0;
+  animation: slideUp 0.5s ease forwards;
+  animation-delay: 0.3s;
+}
+
+.button-animation {
+  opacity: 0;
+  animation: slideUp 0.5s ease forwards;
+  animation-delay: 0.5s;
+}
+
+.media-container {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.media-container:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.media-content {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.media-container:hover .media-content {
+  transform: scale(1.05);
+}
+
+/* Add smooth transitions for navigation elements */
+.navigation-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  padding: 8px;
+  transition: opacity 0.3s ease;
+}
+
+.navigation-container:hover {
+  opacity: 1;
+}
+
+/* Add touch swipe animations */
+.swipe-right-enter {
+  transform: translateX(100%);
+}
+
+.swipe-right-enter-active {
+  transform: translateX(0);
+  transition: transform 300ms ease-in-out;
+}
+
+.swipe-right-exit {
+  transform: translateX(0);
+}
+
+.swipe-right-exit-active {
+  transform: translateX(-100%);
+  transition: transform 300ms ease-in-out;
+}
+
+.swipe-left-enter {
+  transform: translateX(-100%);
+}
+
+.swipe-left-enter-active {
+  transform: translateX(0);
+  transition: transform 300ms ease-in-out;
+}
+
+.swipe-left-exit {
+  transform: translateX(0);
+}
+
+.swipe-left-exit-active {
+  transform: translateX(100%);
+  transition: transform 300ms ease-in-out;
+}
+
+/* Navigation button animations */
+.nav-button {
+  transition: all 0.3s ease;
+}
+
+.nav-button:hover {
+  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.nav-button:active {
+  transform: scale(0.95);
+}
+
+/* Dot navigation animations */
+.dot-nav {
+  transition: all 0.3s ease;
+}
+
+.dot-nav:hover {
+  transform: scale(1.2);
+}
+
+.dot-nav.active {
+  transform: scale(1.1);
+}
+
+/* Add these animation classes */
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+.fade-exit {
+  opacity: 1;
+}
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-in;
+}
+
+.slide-enter {
+  transform: translateX(100%);
+}
+.slide-enter-active {
+  transform: translateX(0);
+  transition: transform 300ms ease-in;
+}
+.slide-exit {
+  transform: translateX(0);
+}
+.slide-exit-active {
+  transform: translateX(-100%);
+  transition: transform 300ms ease-in;
+}
+
+/* Add these styles */
+.close-button {
+  transition: all 0.3s ease;
+}
+
+.close-button:hover {
+  transform: rotate(90deg);
+}
+
+.slide-container {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.media-slide {
+  position: relative;
+  height: 60%;
+  overflow: hidden;
+}
+
+.content-container {
+  padding: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.slide-title {
+  font-size: 2rem;
+  font-weight: bold;
+  animation: slideUp 0.5s ease forwards;
+}
+
+.slide-content {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  animation: slideUp 0.5s ease forwards;
+  animation-delay: 0.2s;
+}
+
+.cta-container {
+  display: flex;
+  gap: 16px;
+  margin-top: auto;
+  animation: slideUp 0.5s ease forwards;
+  animation-delay: 0.4s;
+}
+
+/* Add these styles to improve form elements */
+.MuiTextField-root {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.MuiTextField-root .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.MuiSelect-root {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* Improve card transitions */
+.MuiPaper-root {
+  transition: all 0.3s ease;
+}
+
+.MuiPaper-root:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+
+/* Button hover effects */
+.MuiButton-contained {
+  transition: all 0.3s ease;
+}
+
+.MuiButton-contained:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Add hover effects for cards */
+.MuiPaper-root {
+  transition: all 0.3s ease;
+}
+
+.MuiPaper-root:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+
+/* Add styles for error messages */
+.MuiAlert-root {
+  border-radius: 8px;
+}
+
+/* Add styles for form elements */
+.MuiTextField-root {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.MuiTextField-root .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.MuiSelect-root {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* Add styles for the main container */
+.container {
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.container:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}

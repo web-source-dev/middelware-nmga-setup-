@@ -1,0 +1,138 @@
+/* General Sidebar Styles */
+.mui-drawer {
+  transition: width 0.3s ease-in-out;
+  overflow-x: hidden;
+}
+
+.mui-drawer.open {
+  width: 240px;
+}
+
+.mui-drawer.closed {
+  width: 80px;
+}
+
+/* Sidebar Paper */
+.mui-drawer-paper {
+  transition: width 0.3s ease-in-out;
+  overflow-x: hidden;
+  background-color: #ffffff;
+  border-right: 1px solid #ddd;
+}
+
+.mui-drawer-paper.open {
+  width: 240px;
+}
+
+.mui-drawer-paper.closed {
+  width: 80px;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Toggle Button */
+.toggle-button {
+  color: #333;
+  transition: transform 0.3s ease;
+}
+
+.toggle-button:hover {
+  transform: rotate(180deg);
+}
+
+/* List Items */
+.mui-list-item {
+  padding: 10px 15px;
+  transition: background 0.3s;
+}
+
+.mui-list-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Active link styles */
+.active-link {
+  background-color: rgba(0, 85, 164, 0.1) !important;
+  border-right: 4px solid rgba(0, 85, 164, 0.8);
+}
+
+.active-link .mui-text {
+  font-weight: 600;
+}
+
+/* Icons */
+.mui-icon {
+  min-width: 40px;
+  color: #333;
+}
+
+/* Sidebar Text */
+.mui-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* Mobile Toggle Button (Hidden on Desktop) */
+.mobile-toggle-button {
+  display: none;
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 1300;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+}
+
+.mobile-toggle-button:hover {
+  background: #f0f0f0;
+}
+
+/* Mobile Sidebar */
+.mui-drawer-mobile {
+  position: absolute;
+  top: 50px; /* Appears right below the toggle button */
+  left: 15px;
+  width: 220px;
+  transition: transform 0.3s ease-in-out;
+  transform: translateX(-110%);
+}
+
+.mui-drawer-paper-mobile {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Show the sidebar when open */
+.mui-drawer-mobile.open {
+  transform: translateX(0);
+}
+/* Responsive Design */
+@media (max-width: 768px) {
+  /* Hide the desktop sidebar on mobile */
+  .mui-drawer {
+    display: none;
+  }
+
+  /* Show mobile toggle button */
+  .mobile-toggle-button {
+    display: block;
+  }
+}
