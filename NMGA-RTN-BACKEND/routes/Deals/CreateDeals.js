@@ -6,6 +6,7 @@ const Log = require('../../models/Logs');
 const { notifyUsersByRole } = require('../Common/Notification');
 const { broadcastDealUpdate } = require('../../utils/dealUpdates');
 const { isDistributorAdmin, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Create a new deal
 router.post('/create', isDistributorAdmin, async (req, res) => {
@@ -196,6 +197,14 @@ router.post('/create', isDistributorAdmin, async (req, res) => {
       avgSavingsPerUnit,
       avgSavingsPercentage,
     };
+
+    // Log the action
+    await logCollaboratorAction(req, 'create_deal', 'deal', {
+      dealTitle: name,
+      dealId: newDeal._id,
+      category: category,
+      additionalInfo: `Created deal with ${sizes.length} size options`
+    });
 
     res.status(201).json(response);
 

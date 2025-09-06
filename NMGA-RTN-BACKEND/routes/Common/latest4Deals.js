@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Deal = require('../../models/Deals');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.get('/', async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_latest_deals', 'latest deals');
+        
         // Get the latest 4 active deals with more details
         const latestDeals = await Deal.find({ status: 'active' })
             .sort({ createdAt: -1 })

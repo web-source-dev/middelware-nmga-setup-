@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const ContactUs = require("../models/contactus");
 const { isAdmin } = require("../middleware/auth");
+const { logCollaboratorAction } = require("../utils/collaboratorLogger");
 
 // Update contact status
 router.patch("/status/:id", isAdmin, async (req, res) => {
@@ -23,11 +24,23 @@ router.patch("/status/:id", isAdmin, async (req, res) => {
     );
 
     if (!updatedContact) {
+      await logCollaboratorAction(req, 'update_contact_status_failed', 'contact', { 
+        contactId: id,
+        additionalInfo: 'Contact not found'
+      });
       return res.status(404).json({
         success: false,
         message: "Contact not found"
       });
     }
+
+    await logCollaboratorAction(req, 'update_contact_status', 'contact', { 
+      contactId: id,
+      contactName: updatedContact.name,
+      contactEmail: updatedContact.email,
+      newStatus: status,
+      additionalInfo: `Updated contact status to "${status}" for "${updatedContact.name}"`
+    });
 
     res.status(200).json({
       success: true,
@@ -37,6 +50,10 @@ router.patch("/status/:id", isAdmin, async (req, res) => {
 
   } catch (error) {
     console.error("Error updating contact status:", error);
+    await logCollaboratorAction(req, 'update_contact_status_failed', 'contact', { 
+      contactId: req.params.id,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({
       success: false,
       message: "Error updating contact status",
@@ -68,6 +85,14 @@ router.post("/submit", async (req, res) => {
 
     await newContact.save();
 
+    await logCollaboratorAction(req, 'submit_contact_form', 'contact', { 
+      contactName: name,
+      contactEmail: email,
+      subject: subject,
+      userRole: user_role,
+      additionalInfo: `Contact form submitted by ${name} (${user_role}) - Subject: "${subject}"`
+    });
+
     res.status(201).json({
       success: true,
       message: "Contact form submitted successfully",
@@ -76,6 +101,9 @@ router.post("/submit", async (req, res) => {
 
   } catch (error) {
     console.error("Error in contact form submission:", error);
+    await logCollaboratorAction(req, 'submit_contact_form_failed', 'contact', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({
       success: false,
       message: "Error submitting contact form",
@@ -91,6 +119,11 @@ router.get("/all", isAdmin, async (req, res) => {
       .populate('user_id', 'name email')
       .sort({ createdAt: -1 });
 
+    await logCollaboratorAction(req, 'view_all_contacts', 'contacts', { 
+      totalContacts: contacts.length,
+      additionalInfo: `Viewed all contact form submissions (${contacts.length} total)`
+    });
+
     res.status(200).json({
       success: true,
       data: contacts
@@ -98,6 +131,9 @@ router.get("/all", isAdmin, async (req, res) => {
 
   } catch (error) {
     console.error("Error fetching contact forms:", error);
+    await logCollaboratorAction(req, 'view_all_contacts_failed', 'contacts', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({
       success: false,
       message: "Error fetching contact forms",

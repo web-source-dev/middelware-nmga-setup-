@@ -2,10 +2,14 @@ const express = require('express');
 const router = express.Router();
 const Log = require('../../models/Logs');
 const { isAuthenticated, isAdmin, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Route to get all logs - admin only
 router.get('/', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_all_logs', 'system logs');
+        
         // Add sorting by createdAt in descending order (newest first)
         const logs = await Log.find()
             .populate('user_id', 'name role')
@@ -33,6 +37,9 @@ router.get('/user', isAuthenticated, async (req, res) => {
     try {
         const { currentUser } = getCurrentUserContext(req);
         const userId = currentUser.id;
+
+        // Log the action
+        await logCollaboratorAction(req, 'view_user_logs', 'user logs');
 
         const logs = await Log.find({ user_id: userId })
             .populate('user_id', 'name role')
@@ -64,6 +71,11 @@ router.get('/:userId', isAdmin, async (req, res) => {
         if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
             return res.status(400).json({ message: 'Invalid user ID format' });
         }
+
+        // Log the action
+        await logCollaboratorAction(req, 'view_specific_user_logs', 'user logs', {
+            targetUserId: userId
+        });
 
         const logs = await Log.find({ user_id: userId })
             .populate('user_id', 'name role')

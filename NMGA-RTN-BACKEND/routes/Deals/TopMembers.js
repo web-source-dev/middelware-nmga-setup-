@@ -5,6 +5,7 @@ const Commitment = require('../../models/Commitments');
 const Deal = require('../../models/Deals');
 const { isAdmin, getCurrentUserContext } = require('../../middleware/auth');
 const Log = require('../../models/Logs');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get all members (admin only)
 router.get('/all-members/:userRole', isAdmin, async (req, res) => {
@@ -21,23 +22,19 @@ router.get('/all-members/:userRole', isAdmin, async (req, res) => {
       .select('name email businessName contactPerson phone address logo')
       .lean();
 
+    await logCollaboratorAction(req, 'view_all_members', 'members', { 
+      totalMembers: members.length,
+      additionalInfo: 'Admin viewed all members list'
+    });
+
     return res.status(200).json({ members });
   } catch (error) {
     console.error('Error fetching members:', error);
     
     // Log the error
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view all members - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
-      });
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_all_members_failed', 'members', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     return res.status(500).json({ 
       success: false,
@@ -84,10 +81,13 @@ router.get('/member-details/:memberId/:userRole', isAdmin, async (req, res) => {
       sum + (commitment.totalPrice || 0), 0);
     
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) viewed member details for ${member.name} (${member.email})`,
-      type: 'info',
-      user_id: adminId
+    await logCollaboratorAction(req, 'view_member_details_admin', 'member', { 
+      memberId: memberId,
+      memberName: member.name,
+      memberEmail: member.email,
+      totalCommitments: commitments.length,
+      totalSpent: totalSpent,
+      additionalInfo: 'Admin viewed detailed member information'
     });
 
     return res.status(200).json({
@@ -103,18 +103,10 @@ router.get('/member-details/:memberId/:userRole', isAdmin, async (req, res) => {
     console.error('Error fetching member details:', error);
     
     // Log the error
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view member details - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
-      });
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_member_details_admin_failed', 'member', { 
+      memberId: req.params.memberId,
+      additionalInfo: `Error: ${error.message}`
+    });
     
     return res.status(500).json({ 
       success: false,
@@ -170,10 +162,9 @@ router.get('/top-members/:userRole', isAdmin, async (req, res) => {
     result.sort((a, b) => b.stats.totalCommitments - a.stats.totalCommitments);
 
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) viewed top members - Found ${result.length} top members`,
-      type: 'info',
-      user_id: adminId
+    await logCollaboratorAction(req, 'view_top_members', 'members', { 
+      topMembersCount: result.length,
+      additionalInfo: 'Admin viewed top performing members'
     });
 
     return res.status(200).json({ 
@@ -184,18 +175,9 @@ router.get('/top-members/:userRole', isAdmin, async (req, res) => {
     console.error('Error fetching top members:', error);
     
     // Log the error
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view top members - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
-      });
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_top_members_failed', 'members', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     return res.status(500).json({ 
       success: false,

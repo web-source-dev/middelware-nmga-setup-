@@ -5,6 +5,7 @@ const Commitment = require('../../models/Commitments');
 const Deal = require('../../models/Deals');
 const { isAdmin, getCurrentUserContext } = require('../../middleware/auth');
 const Log = require('../../models/Logs');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get all distributors with their performance metrics (admin only)
 router.get('/all-distributors/:userRole', isAdmin, async (req, res) => {
@@ -22,10 +23,9 @@ router.get('/all-distributors/:userRole', isAdmin, async (req, res) => {
       .lean();
 
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) viewed all distributors - Found ${distributors.length} distributors`,
-      type: 'info',
-      user_id: adminId
+    await logCollaboratorAction(req, 'view_all_distributors', 'distributors', { 
+      totalDistributors: distributors.length,
+      additionalInfo: 'Admin viewed all distributors list'
     });
 
     return res.status(200).json({ 
@@ -36,18 +36,9 @@ router.get('/all-distributors/:userRole', isAdmin, async (req, res) => {
     console.error('Error fetching distributors:', error);
     
     // Log the error
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view all distributors - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
-      });
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_all_distributors_failed', 'distributors', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     return res.status(500).json({ 
       success: false,
@@ -114,10 +105,9 @@ router.get('/top-distributors/:userRole', isAdmin, async (req, res) => {
     const topDistributors = distributorStats.slice(0, 5);
 
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) viewed top distributors - Found ${topDistributors.length} top distributors`,
-      type: 'info',
-      user_id: adminId
+    await logCollaboratorAction(req, 'view_top_distributors', 'distributors', { 
+      topDistributorsCount: topDistributors.length,
+      additionalInfo: 'Admin viewed top performing distributors'
     });
 
     return res.status(200).json({ 
@@ -128,18 +118,9 @@ router.get('/top-distributors/:userRole', isAdmin, async (req, res) => {
     console.error('Error fetching top distributors:', error);
     
     // Log the error
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view top distributors - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
-      });
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_top_distributors_failed', 'distributors', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     return res.status(500).json({ 
       success: false,

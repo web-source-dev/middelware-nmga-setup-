@@ -4,11 +4,15 @@ const User = require('../../models/User');
 const Deal = require('../../models/Deals');
 const Payment = require('../../models/Paymentmodel');
 const { isAdmin } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 
 // Get analytics overview
 router.get('/overview', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_analytics', 'analytics dashboard');
+        
         const [userStats, dealStats, paymentStats] = await Promise.all([
             // User statistics
             User.aggregate([
@@ -63,6 +67,9 @@ router.get('/overview', isAdmin, async (req, res) => {
 // Get weekly metrics
 router.get('/weekly-metrics', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_weekly_metrics', 'weekly metrics');
+        
         // Get data for the last 7 weeks
         const sevenWeeksAgo = new Date();
         sevenWeeksAgo.setDate(sevenWeeksAgo.getDate() - (7 * 7));
@@ -131,6 +138,9 @@ router.get('/weekly-metrics', isAdmin, async (req, res) => {
 // Get regional statistics
 router.get('/regions', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_regional_stats', 'regional statistics');
+        
         const regions = await User.aggregate([
             {
                 $match: {
@@ -177,6 +187,9 @@ router.get('/regions', isAdmin, async (req, res) => {
 // Get business type statistics
 router.get('/business-types', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_business_types', 'business type analytics');
+        
         const businessTypes = await User.aggregate([
             {
                 $match: {

@@ -17,6 +17,7 @@ import {
   Stack,
   Tooltip
 } from "@mui/material";
+import { useAuth } from "../../middleware/auth";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ImageIcon from "@mui/icons-material/Image";
@@ -33,6 +34,36 @@ const FileUploader = ({ onUpload, onRemove, initialImages = [], disabled = false
   const [uploadProgress, setUploadProgress] = useState({});
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
+
+  // Get user info from middleware
+  const { 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager,
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (upload, remove files)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   
   // Cloudinary configuration
   const cloudName = process.env.REACT_APP_CLOUDINARY_NAME;
@@ -59,7 +90,7 @@ const FileUploader = ({ onUpload, onRemove, initialImages = [], disabled = false
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (disabled || uploading) return;
+    if (disabled || uploading || !canPerformActions()) return;
     setIsDragging(true);
   };
 
@@ -72,7 +103,7 @@ const FileUploader = ({ onUpload, onRemove, initialImages = [], disabled = false
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (disabled || uploading) return;
+    if (disabled || uploading || !canPerformActions()) return;
     e.dataTransfer.dropEffect = 'copy';
     setIsDragging(true);
   };
@@ -82,7 +113,7 @@ const FileUploader = ({ onUpload, onRemove, initialImages = [], disabled = false
     e.stopPropagation();
     setIsDragging(false);
     
-    if (disabled || uploading) return;
+    if (disabled || uploading || !canPerformActions()) return;
     
     const droppedFiles = Array.from(e.dataTransfer.files);
     processFiles(droppedFiles);
@@ -137,7 +168,7 @@ const FileUploader = ({ onUpload, onRemove, initialImages = [], disabled = false
   };
   
   const handleFileSelect = (event) => {
-    if (disabled) return;
+    if (disabled || !canPerformActions()) return;
     
     const selectedFiles = Array.from(event.target.files);
     processFiles(selectedFiles);

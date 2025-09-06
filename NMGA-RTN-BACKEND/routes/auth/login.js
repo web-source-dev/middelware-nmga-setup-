@@ -12,11 +12,103 @@ router.post('/', async (req, res) => {
     const { email, password, login_key, adminId } = req.body;
 
     try {
-        const user = await User.findOne({ email: email.toLowerCase() });
+        // First check if it's a main user
+        let user = await User.findOne({ email: email.toLowerCase() });
+        let isCollaborator = false;
+        let collaboratorData = null;
+        let mainUser = null;
+
+        // If not found in main users, check collaborators
         if (!user) {
-            return res.status(400).json({ message: 'Invalid email or password' });
+            const usersWithCollaborators = await User.find({
+                'collaborators.email': email.toLowerCase()
+            });
+
+            for (const userDoc of usersWithCollaborators) {
+                const collaborator = userDoc.collaborators.find(
+                    collab => collab.email.toLowerCase() === email.toLowerCase()
+                );
+                
+                if (collaborator && collaborator.status === 'active') {
+                    isCollaborator = true;
+                    collaboratorData = collaborator;
+                    mainUser = userDoc;
+                    break;
+                }
+            }
+
+            if (!isCollaborator) {
+                return res.status(400).json({ message: 'Invalid email or password' });
+            }
         }
 
+        // Handle collaborator login
+        if (isCollaborator) {
+            if (collaboratorData.status !== 'active') {
+                return res.status(403).json({ message: 'Collaborator account is not active' });
+            }
+
+            const isPasswordMatch = await bcrypt.compare(password, collaboratorData.password);
+            if (!isPasswordMatch) {
+                return res.status(400).json({ message: 'Invalid email or password' });
+            }
+
+            // Create token for collaborator with main user's role and collaborator's role
+            const tokenPayload = {
+                id: mainUser._id, // Main user's ID
+                role: mainUser.role, // Main user's role
+                collaboratorId: collaboratorData._id,
+                collaboratorRole: collaboratorData.role,
+                isCollaborator: true,
+                collaboratorEmail: collaboratorData.email
+            };
+
+            const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '1y' });
+
+            // Create login notification for main user
+            await createNotification({
+                recipientId: mainUser._id,
+                type: 'auth',
+                subType: 'collaborator_login',
+                title: 'Collaborator Login',
+                message: `${collaboratorData.name} logged in to your account`,
+                relatedId: collaboratorData._id,
+                onModel: 'User',
+                priority: 'medium'
+            });
+
+            // Fetch announcements for login event
+            const announcements = await Announcement.find({
+                event: 'login',
+                isActive: true,
+                startTime: { $lte: new Date() },
+                endTime: { $gte: new Date() }
+            }).sort({ priority: -1, createdAt: -1 });
+
+            return res.json({
+                token,
+                user: {
+                    id: mainUser._id,
+                    name: mainUser.name,
+                    email: mainUser.email,
+                    role: mainUser.role,
+                    businessName: mainUser.businessName,
+                    contactPerson: mainUser.contactPerson,
+                    phone: mainUser.phone,
+                    address: mainUser.address,
+                    logo: mainUser.logo,
+                    isCollaborator: true,
+                    collaboratorName: collaboratorData.name,
+                    collaboratorRole: collaboratorData.role
+                },
+                user_id: mainUser._id,
+                message: 'Collaborator login successful',
+                success: true,
+                announcements
+            });
+        }
+
+        // Handle main user login
         if (user.isBlocked) {
             return res.status(403).json({ message: 'User is blocked' });
         }

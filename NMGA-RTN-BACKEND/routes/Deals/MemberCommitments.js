@@ -6,6 +6,7 @@ const Deal = require('../../models/Deals');
 const Supplier = require('../../models/Suppliers');
 const Log = require('../../models/Logs');
 const { isDistributorAdmin, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get all members with commitments for a distributor
 router.get('/members-with-commitments', isDistributorAdmin, async (req, res) => {
@@ -74,6 +75,12 @@ router.get('/members-with-commitments', isDistributorAdmin, async (req, res) => 
     // Group commitments by user
     const memberCommitments = {};
     commitments.forEach(commitment => {
+      // Skip commitments with null or missing userId
+      if (!commitment.userId || !commitment.userId._id) {
+        console.warn('Skipping commitment with null userId:', commitment._id);
+        return;
+      }
+      
       const userId = commitment.userId._id.toString();
       if (!memberCommitments[userId]) {
         memberCommitments[userId] = {
@@ -96,20 +103,20 @@ router.get('/members-with-commitments', isDistributorAdmin, async (req, res) => 
       
       memberCommitments[userId].commitments.push({
         _id: commitment._id,
-        dealName: commitment.dealId.name,
-        dealCategory: commitment.dealId.category,
-        dealStatus: commitment.dealId.status,
-        status: commitment.status,
-        totalPrice: commitment.totalPrice,
+        dealName: commitment.dealId?.name || 'Unknown Deal',
+        dealCategory: commitment.dealId?.category || 'Unknown',
+        dealStatus: commitment.dealId?.status || 'Unknown',
+        status: commitment.status || 'Unknown',
+        totalPrice: commitment.totalPrice || 0,
         sizeCommitments: commitment.sizeCommitments,
         quantity: commitment.sizeCommitments ? 
-          commitment.sizeCommitments.reduce((sum, item) => sum + item.quantity, 0) : 
+          commitment.sizeCommitments.reduce((sum, item) => sum + (item.quantity || 0), 0) : 
           commitment.quantity || 0,
         createdAt: commitment.createdAt
       });
       
       memberCommitments[userId].totalCommitments++;
-      memberCommitments[userId].totalAmount += commitment.totalPrice;
+      memberCommitments[userId].totalAmount += (commitment.totalPrice || 0);
       
       if (!memberCommitments[userId].lastCommitmentDate || 
           new Date(commitment.createdAt) > new Date(memberCommitments[userId].lastCommitmentDate)) {
@@ -220,19 +227,13 @@ router.get('/members-with-commitments', isDistributorAdmin, async (req, res) => 
     const paginatedMembers = members.slice(startIndex, endIndex);
 
     // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed members with commitments on behalf of distributor ${currentUser.name} (${currentUser.email}) - Found ${paginatedMembers.length} members`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed members with commitments - Found ${paginatedMembers.length} members`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'view_members_with_commitments', 'members', { 
+      totalMembers: paginatedMembers.length,
+      totalCommitments: stats.totalCommitments,
+      totalRevenue: stats.totalRevenue,
+      activeSuppliers: stats.activeSuppliers,
+      additionalInfo: `Viewed members with commitments data`
+    });
 
     res.json({
       members: paginatedMembers,
@@ -249,23 +250,9 @@ router.get('/members-with-commitments', isDistributorAdmin, async (req, res) => 
     console.error('Error fetching members with commitments:', error);
     
     // Log the error with admin impersonation details if applicable
-    try {
-      if (typeof isImpersonating !== 'undefined' && isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser?.name || 'Unknown'} (${originalUser?.email || 'Unknown'}) failed to view members with commitments on behalf of distributor ${currentUser?.name || 'Unknown'} (${currentUser?.email || 'Unknown'}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser?.name || 'Unknown'} (${currentUser?.email || 'Unknown'}) failed to view members with commitments - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_members_with_commitments_failed', 'members', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ error: 'Failed to fetch members with commitments' });
   }
@@ -355,19 +342,14 @@ router.get('/member-details/:memberId', isDistributorAdmin, async (req, res) => 
     };
 
     // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed member details for "${memberDetails.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed member details for "${memberDetails.name}"`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'view_member_details', 'member', { 
+      memberId: memberId,
+      memberName: memberDetails.name,
+      totalCommitments: memberDetails.totalCommitments,
+      totalAmount: memberDetails.totalAmount,
+      hasSupplier: !!memberDetails.assignedSupplier,
+      additionalInfo: `Viewed detailed member information`
+    });
 
     console.log('Sending member details response:', {
       memberName: memberDetails.name,
@@ -382,23 +364,10 @@ router.get('/member-details/:memberId', isDistributorAdmin, async (req, res) => 
     console.error('Error fetching member details:', error);
     
     // Log the error with admin impersonation details if applicable
-    try {
-      if (typeof isImpersonating !== 'undefined' && isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser?.name || 'Unknown'} (${originalUser?.email || 'Unknown'}) failed to view member details on behalf of distributor ${currentUser?.name || 'Unknown'} (${currentUser?.email || 'Unknown'}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser?.name || 'Unknown'} (${currentUser?.email || 'Unknown'}) failed to view member details - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_member_details_failed', 'member', { 
+      memberId: req.params.memberId,
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ error: 'Failed to fetch member details' });
   }
@@ -465,19 +434,13 @@ router.get('/member-analytics/:memberId', isDistributorAdmin, async (req, res) =
     };
 
     // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed member analytics on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed member analytics`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'view_member_analytics', 'member', { 
+      memberId: memberId,
+      totalCommitments: analytics.totalCommitments,
+      totalAmount: analytics.totalAmount,
+      averageCommitmentValue: analytics.averageCommitmentValue,
+      additionalInfo: `Viewed member analytics data`
+    });
 
     res.json(analytics);
 
@@ -485,23 +448,10 @@ router.get('/member-analytics/:memberId', isDistributorAdmin, async (req, res) =
     console.error('Error fetching member analytics:', error);
     
     // Log the error with admin impersonation details if applicable
-    try {
-      if (typeof isImpersonating !== 'undefined' && isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser?.name || 'Unknown'} (${originalUser?.email || 'Unknown'}) failed to view member analytics on behalf of distributor ${currentUser?.name || 'Unknown'} (${currentUser?.email || 'Unknown'}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser?.name || 'Unknown'} (${currentUser?.email || 'Unknown'}) failed to view member analytics - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_member_analytics_failed', 'member', { 
+      memberId: req.params.memberId,
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ error: 'Failed to fetch member analytics' });
   }

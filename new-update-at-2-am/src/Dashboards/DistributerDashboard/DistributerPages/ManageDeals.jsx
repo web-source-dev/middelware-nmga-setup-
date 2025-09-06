@@ -15,7 +15,15 @@ import LinearProgress from '@mui/material/LinearProgress';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 const ManageDeals = () => {
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    collaboratorRole, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isDealManager 
+  } = useAuth();
   const [deals, setDeals] = useState([]);
   const [categories, setCategories] = useState([]);
   const [layout, setLayout] = useState('table');
@@ -33,10 +41,7 @@ const ManageDeals = () => {
     dealName: '',
     actionType: ''
   });
-  const [debugDialog, setDebugDialog] = useState({
-    open: false,
-    data: null
-  });
+
 
   const location = useLocation();
   
@@ -77,6 +82,24 @@ const ManageDeals = () => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width:600px)');
 
+  // Check if user can perform actions (edit, delete, duplicate, toggle status)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
+
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5); // Set default rows per page
@@ -114,8 +137,6 @@ const ManageDeals = () => {
         });
         console.log('API Response:', response.data);
         
-        // Store raw response for debugging
-        setDebugDialog(prev => ({ ...prev, data: response.data }));
         
         // Get categories from response if available
         if (response.data && response.data.categories) {
@@ -907,15 +928,6 @@ The new deal will be created with the following settings:
     );
   };
 
-  // Add function to open debug dialog
-  const handleOpenDebugDialog = () => {
-    setDebugDialog(prev => ({ ...prev, open: true }));
-  };
-
-  // Add function to close debug dialog
-  const handleCloseDebugDialog = () => {
-    setDebugDialog(prev => ({ ...prev, open: false }));
-  };
 
   if (loading) {
     return layout === 'grid' ? (
@@ -944,7 +956,11 @@ The new deal will be created with the following settings:
         <Box>
           <Tooltip title="Add New Deal">
             {(location.pathname.includes("distributor")) && (
-              <IconButton color="primary.contrastText" onClick={() => navigate('/dashboard/distributor/deal/create')}>
+              <IconButton 
+                color="primary.contrastText" 
+                onClick={() => navigate('/dashboard/distributor/deal/create')}
+                disabled={!canPerformActions()}
+              >
                 <Add color="primary.contrastText" />
               </IconButton>
             )}
@@ -1000,6 +1016,7 @@ The new deal will be created with the following settings:
               startIcon={<Add />} 
               sx={{ mt: 2 }}
               onClick={() => navigate('/dashboard/distributor/deal/create')}
+              disabled={!canPerformActions()}
             >
               Create New Deal
             </Button>
@@ -1322,6 +1339,7 @@ The new deal will be created with the following settings:
                                 color="primary.contrastText"  
                                 onClick={() => handleEdit(deal)}
                                 size="small"
+                                disabled={!canPerformActions()}
                                 sx={{ 
                                   width: 28,
                                   height: 28,
@@ -1338,6 +1356,7 @@ The new deal will be created with the following settings:
                                 color="primary.contrastText" 
                                 onClick={() => handleDuplicate(deal)}
                                 size="small"
+                                disabled={!canPerformActions()}
                                 sx={{ 
                                   width: 28,
                                   height: 28,
@@ -1384,6 +1403,7 @@ The new deal will be created with the following settings:
                                   color="primary.contrastText"
                                   onClick={() => handleDelete(deal._id)}
                                   size="small"
+                                  disabled={!canPerformActions()}
                                   sx={{ 
                                     width: 28,
                                     height: 28,
@@ -1401,6 +1421,7 @@ The new deal will be created with the following settings:
                                 onChange={() => handleToggleChange(deal._id, deal.status)}
                                 color="primary.contrastText "
                                 size="small"
+                                disabled={!canPerformActions()}
                                 sx={{ transform: 'scale(0.8)', ml: '-4px' }}
                               />
                             </Tooltip>
@@ -1605,10 +1626,10 @@ The new deal will be created with the following settings:
                       onClose={() => handleMenuClose(deal._id)}
                     >
                       {location.pathname.includes("distributor") && [
-                        <MenuItem key="edit" onClick={() => { handleEdit(deal); handleMenuClose(deal._id); }}>
+                        <MenuItem key="edit" onClick={() => { handleEdit(deal); handleMenuClose(deal._id); }} disabled={!canPerformActions()}>
                           <Edit sx={{ mr: 1, color: 'primary.contrastText' }} fontSize="small" /> Edit
                         </MenuItem>,
-                        <MenuItem key="duplicate" onClick={() => { handleDuplicate(deal); handleMenuClose(deal._id); }}>
+                        <MenuItem key="duplicate" onClick={() => { handleDuplicate(deal); handleMenuClose(deal._id); }} disabled={!canPerformActions()}>
                           <ContentCopy sx={{ mr: 1, color: 'primary.contrastText' }} fontSize="small" /> Duplicate
                         </MenuItem>
                       ]}
@@ -1627,18 +1648,19 @@ The new deal will be created with the following settings:
                         <MenuItem onClick={() => { 
                           handleToggleChange(deal._id, deal.status); 
                           handleMenuClose(deal._id); 
-                        }}>
+                        }} disabled={!canPerformActions()}>
                           <Switch
                             checked={deal.status === 'active'}
                             size="small"
                             sx={{ mr: 1 }}
+                            disabled={!canPerformActions()}
                           />
                           {deal.status === 'active' ? 'Deactivate' : 'Activate'}
                         </MenuItem>
                       )}
 
                       {!deal.bulkAction && (
-                        <MenuItem onClick={() => {handleDelete(deal._id); handleMenuClose(deal._id);}}>
+                        <MenuItem onClick={() => {handleDelete(deal._id); handleMenuClose(deal._id);}} disabled={!canPerformActions()}>
                           <DeleteOutline sx={{ mr: 1, color: 'primary.contrastText' }} fontSize="small" /> Delete
                         </MenuItem>
                       )}
@@ -1772,10 +1794,10 @@ The new deal will be created with the following settings:
                           onClose={() => handleMenuClose(deal._id)}
                         >
                           {location.pathname.includes("distributor") && [
-                            <MenuItem key="edit" onClick={() => { handleEdit(deal); handleMenuClose(deal._id); }}>
+                            <MenuItem key="edit" onClick={() => { handleEdit(deal); handleMenuClose(deal._id); }} disabled={!canPerformActions()}>
                               <Edit sx={{ mr: 1, color: 'primary.contrastText' }} fontSize="small" /> Edit
                             </MenuItem>,
-                            <MenuItem key="duplicate" onClick={() => { handleDuplicate(deal); handleMenuClose(deal._id); }}>
+                            <MenuItem key="duplicate" onClick={() => { handleDuplicate(deal); handleMenuClose(deal._id); }} disabled={!canPerformActions()}>
                               <ContentCopy sx={{ mr: 1, color: 'primary.contrastText' }} fontSize="small" /> Duplicate
                             </MenuItem>
                           ]}
@@ -1794,18 +1816,19 @@ The new deal will be created with the following settings:
                             <MenuItem onClick={() => { 
                               handleToggleChange(deal._id, deal.status); 
                               handleMenuClose(deal._id); 
-                            }}>
+                            }} disabled={!canPerformActions()}>
                               <Switch
                                 checked={deal.status === 'active'}
                                 size="small"
                                 sx={{ mr: 1 }}
+                                disabled={!canPerformActions()}
                               />
                               {deal.status === 'active' ? 'Deactivate' : 'Activate'}
                             </MenuItem>
                           )}
 
                           {!deal.bulkAction && (
-                            <MenuItem onClick={() => {handleDelete(deal._id); handleMenuClose(deal._id);}}>
+                            <MenuItem onClick={() => {handleDelete(deal._id); handleMenuClose(deal._id);}} disabled={!canPerformActions()}>
                               <DeleteOutline sx={{ mr: 1, color: 'primary.contrastText' }} fontSize="small" /> Delete
                             </MenuItem>
                           )}

@@ -45,7 +45,36 @@ const FolderTree = ({
   onRenameFolder
 }) => {
   const { enqueueSnackbar } = useSnackbar();
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager, 
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (create, rename, delete folders)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   const [expandedFolders, setExpandedFolders] = useState({});
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedFolderForMenu, setSelectedFolderForMenu] = useState(null);
@@ -379,7 +408,11 @@ const FolderTree = ({
           Folders
         </Typography>
         <Tooltip title="New Folder">
-          <IconButton size="small" onClick={() => openNewFolderDialog("root")}>
+          <IconButton 
+            size="small" 
+            onClick={() => openNewFolderDialog("root")}
+            disabled={!canPerformActions()}
+          >
             <AddIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -432,13 +465,13 @@ const FolderTree = ({
         open={Boolean(anchorEl)}
         onClose={handleCloseMenu}
       >
-        <MenuItem onClick={handleOpenRenameDialog}>
+        <MenuItem onClick={handleOpenRenameDialog} disabled={!canPerformActions()}>
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Rename</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => openNewFolderDialog(selectedFolderForMenu?._id)}>
+        <MenuItem onClick={() => openNewFolderDialog(selectedFolderForMenu?._id)} disabled={!canPerformActions()}>
           <ListItemIcon>
             <AddIcon fontSize="small" />
           </ListItemIcon>
@@ -447,6 +480,7 @@ const FolderTree = ({
         <Divider />
         <MenuItem 
           onClick={openDeleteConfirmation}
+          disabled={!canPerformActions()}
           sx={{ color: 'error.main' }}
         >
           <ListItemIcon>

@@ -28,7 +28,6 @@ const Compare = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [comparisonHistory, setComparisonHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [selectedComparison, setSelectedComparison] = useState(null);
   const [showComparisonDetails, setShowComparisonDetails] = useState(false);
   const [comparisonDetails, setComparisonDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -41,7 +40,33 @@ const Compare = () => {
   const navigate = useNavigate();
   
   // Get user info from middleware
-  const { currentUserId, isImpersonating, userRole } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    userRole, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isSupplierManager 
+  } = useAuth();
+
+  // Check if user can perform actions (download template, upload, view history)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Supplier manager
+    if (isSupplierManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   
   useEffect(() => {
     if (currentUserId) {
@@ -505,6 +530,7 @@ const Compare = () => {
                           size="small" 
                           onClick={() => handleDownloadTemplate(deal._id)}
                           title="Download CSV Template"
+                          disabled={!canPerformActions()}
                           sx={{
                             color: 'primary.contrastText',
                             borderColor: 'primary.contrastText',
@@ -518,6 +544,7 @@ const Compare = () => {
                           size="small" 
                           onClick={() => handleUploadClick(deal)}
                           title="Upload Comparison Data"
+                          disabled={!canPerformActions()}
                           sx={{
                             color: 'secondary.contrastText',
                             backgroundColor: 'secondary.main',
@@ -531,7 +558,7 @@ const Compare = () => {
                           size="small" 
                           onClick={() => fetchComparisonHistory(deal._id)}
                           title="View Comparison History"
-                          disabled={!deal.hasComparison}
+                          disabled={!deal.hasComparison }
                           sx={{
                             color: 'primary.contrastText',
                             backgroundColor: 'primary.main',
@@ -630,6 +657,7 @@ const Compare = () => {
                           variant="outlined" 
                           size="small" 
                           onClick={() => handleViewComparison(comparison._id)}
+                          disabled={!canPerformActions()}
                           sx={{
                             color: 'primary.contrastText',
                             backgroundColor: 'primary.main',

@@ -5,6 +5,7 @@ const Commitment = require('../../models/Commitments');
 const Log = require('../../models/Logs');
 const { isDistributorAdmin, getCurrentUserContext } = require('../../middleware/auth');
 const mongoose = require('mongoose');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get dashboard statistics for distributor
 router.get('/dashboard-stats', isDistributorAdmin, async (req, res) => {
@@ -119,20 +120,10 @@ router.get('/dashboard-stats', isDistributorAdmin, async (req, res) => {
             impressions: item.impressions || 0
         }));
 
-        // Log the action with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) viewed dashboard stats on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-                type: 'info',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) viewed dashboard stats`,
-                type: 'info',
-                user_id: distributorId
-            });
-        }
+        // Log the action
+        await logCollaboratorAction(req, 'view_dashboard_stats', 'dashboard statistics', {
+            additionalInfo: `Active deals: ${activeDeals}, Pending commitments: ${pendingCommitments}, Total sales: $${dealMetrics[0]?.totalSales || 0}`
+        });
 
         res.json({
             activeDeals,
@@ -168,27 +159,10 @@ router.get('/dashboard-stats', isDistributorAdmin, async (req, res) => {
     } catch (error) {
         console.error('Dashboard Stats Error:', error);
         
-        // Log the error with admin impersonation details if applicable
-        try {
-            const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-            const distributorId = currentUser.id;
-            
-            if (isImpersonating) {
-                await Log.create({
-                    message: `Admin ${originalUser.name} (${originalUser.email}) failed to view dashboard stats on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-                    type: 'error',
-                    user_id: distributorId
-                });
-            } else {
-                await Log.create({
-                    message: `Distributor ${currentUser.name} (${currentUser.email}) failed to view dashboard stats - Error: ${error.message}`,
-                    type: 'error',
-                    user_id: distributorId
-                });
-            }
-        } catch (logError) {
-            console.error('Error logging:', logError);
-        }
+        // Log the error
+        await logCollaboratorAction(req, 'view_dashboard_stats_failed', 'dashboard statistics', {
+            additionalInfo: `Error: ${error.message}`
+        });
         
         res.status(500).json({ message: "Error fetching dashboard statistics", error: error.message });
     }

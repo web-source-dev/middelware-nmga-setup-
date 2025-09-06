@@ -82,7 +82,16 @@ const DisplayDeals = () => {
   const [splashContent, setSplashContent] = useState([]);
   const [activeTier, setActiveTier] = useState(null);
 
-  const { currentUserId, userRole, isAuthenticated, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    userRole, 
+    isAuthenticated, 
+    isImpersonating,
+    isCollaborator,
+    isAdmin,
+    isCollaboratorManager,
+    isCommitmentManager
+  } = useAuth();
 
   // Check if commitment period has ended
   const isCommitmentPeriodEnded = (deal) => {
@@ -99,6 +108,24 @@ const DisplayDeals = () => {
     const commitmentEndDate = new Date(deal.commitmentEndsAt);
     const now = new Date();
     return now >= commitmentStartDate && now <= commitmentEndDate;
+  };
+
+  // Check if user can perform commitment actions
+  const canPerformCommitmentActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Commitment manager
+    if (isCommitmentManager) return true;
+    
+    // All other collaborators cannot perform commitment actions
+    return false;
   };
 
   // Handle distributor redirect
@@ -378,6 +405,16 @@ const DisplayDeals = () => {
       setToast({
         open: true,
         message: 'Only Co-op members can commit to deals',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Check if user has permission to perform commitment actions
+    if (!canPerformCommitmentActions()) {
+      setToast({
+        open: true,
+        message: 'You do not have permission to make commitments.',
         severity: 'warning'
       });
       return;
@@ -1107,6 +1144,20 @@ const DisplayDeals = () => {
                 >
                   Not Started
                 </Button>
+              ) : !canPerformCommitmentActions() ? (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  disabled
+                  sx={{ 
+                    borderRadius: 1,
+                    color: theme.palette.text.disabled,
+                    borderColor: theme.palette.text.disabled
+                  }}
+                >
+                  No Permission
+                </Button>
               ) : (
                 <Button
                   fullWidth
@@ -1764,6 +1815,7 @@ const DisplayDeals = () => {
                                   value={quantity}
                                   onChange={(e) => handleSizeQuantityChange(size.size, e.target.value)}
                                   inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                                  disabled={!canPerformCommitmentActions()}
                                   sx={{ width: 80 }}
                                 />
                               </TableCell>
@@ -2105,7 +2157,7 @@ const DisplayDeals = () => {
               variant="contained"
               color={selectedDeal && userCommitments.includes(selectedDeal._id) ? "warning" : "primary"}
               onClick={handleCommitDeal}
-              disabled={isCommitting || totalQuantity === 0}
+              disabled={isCommitting || totalQuantity === 0 || !canPerformCommitmentActions()}
               sx={{
                 borderRadius: 2,
                 background: selectedDeal && userCommitments.includes(selectedDeal._id) ? 'linear-gradient(45deg, #FF9800 30%, #FFC107 90%)' : undefined,
@@ -2117,6 +2169,8 @@ const DisplayDeals = () => {
             >
               {isCommitting ? (
                 <CircularProgress size={24} color="inherit" />
+              ) : !canPerformCommitmentActions() ? (
+                'No Permission'
               ) : (
                 selectedDeal && userCommitments.includes(selectedDeal._id) ? 'Update Commitment' : 'Confirm Commitment'
               )}

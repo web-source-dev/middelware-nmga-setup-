@@ -4,6 +4,7 @@ const Deal = require('../../models/Deals');
 const Commitment = require('../../models/Commitments');
 const User = require('../../models/User');
 const mongoose = require('mongoose');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Helper function to calculate total quantity for a commitment
 const calculateTotalQuantity = (commitment) => {
@@ -365,9 +366,22 @@ router.get('/:dealId', async (req, res) => {
             }
         };
 
+        await logCollaboratorAction(req, 'view_deal_analytics', 'deal', { 
+          dealId: dealId,
+          dealName: deal.name,
+          totalCommitments: totalCommitments,
+          totalRevenue: totalRevenue,
+          userRole: userRole,
+          additionalInfo: `Analytics viewed for deal with ${totalCommitments} commitments`
+        });
         res.json(analyticsData);
     } catch (error) {
         console.error('Error fetching deal analytics:', error);
+        await logCollaboratorAction(req, 'view_deal_analytics_failed', 'deal', { 
+          dealId: dealId,
+          userRole: userRole,
+          additionalInfo: `Error: ${error.message}`
+        });
         res.status(500).json({ message: 'Error fetching analytics data', error: error.message });
     }
 });

@@ -6,6 +6,7 @@ const Commitment = require("../../models/Commitments");
 const Deal = require("../../models/Deals");
 const Log = require("../../models/Logs");
 const { isDistributorAdmin, getCurrentUserContext } = require("../../middleware/auth");
+const { logCollaboratorAction } = require("../../utils/collaboratorLogger");
 
 // Get all suppliers
 router.get("/", async (req, res) => {
@@ -33,46 +34,18 @@ router.get("/by-distributor", isDistributorAdmin, async (req, res) => {
       .populate("assignedTo", "name businessName email")
       .populate("assignedBy", "name businessName email");
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed suppliers on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed suppliers`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'view_suppliers', 'suppliers', { 
+      totalSuppliers: suppliers.length,
+      additionalInfo: `Viewed ${suppliers.length} suppliers`
+    });
     
     res.status(200).json({ success: true, suppliers });
   } catch (error) {
     console.error('Error fetching suppliers by distributor:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to view suppliers on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to view suppliers - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_suppliers_failed', 'suppliers', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({
       success: false,
@@ -110,20 +83,11 @@ router.post("/", isDistributorAdmin, async (req, res) => {
     
     await newSupplier.save();
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) created supplier "${name}" (${email}) on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'success',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) created supplier "${name}" (${email})`,
-        type: 'success',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'create_supplier', 'supplier', { 
+      supplierName: name,
+      supplierEmail: email,
+      additionalInfo: `Created supplier "${name}" (${email})`
+    });
     
     res.status(201).json({
       success: true,
@@ -133,27 +97,9 @@ router.post("/", isDistributorAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error creating supplier:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to create supplier on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to create supplier - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'create_supplier_failed', 'supplier', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({
       success: false,
@@ -240,20 +186,12 @@ router.put("/assign/:supplierId", isDistributorAdmin, async (req, res) => {
       assignedBy: distributorId
     });
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) assigned supplier "${supplier.name}" to member "${member.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'success',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) assigned supplier "${supplier.name}" to member "${member.name}"`,
-        type: 'success',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'assign_supplier', 'supplier', { 
+      supplierName: supplier.name,
+      memberName: member.name,
+      memberId: memberId,
+      additionalInfo: `Assigned supplier "${supplier.name}" to member "${member.name}"`
+    });
     
     res.status(200).json({
       success: true,
@@ -264,27 +202,9 @@ router.put("/assign/:supplierId", isDistributorAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error assigning supplier:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to assign supplier on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to assign supplier - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'assign_supplier_failed', 'supplier', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({
       success: false,
@@ -342,20 +262,12 @@ router.put("/unassign/:supplierId", isDistributorAdmin, async (req, res) => {
     
     await supplier.save();
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) unassigned supplier "${supplier.name}" from member "${memberName}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'success',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) unassigned supplier "${supplier.name}" from member "${memberName}"`,
-        type: 'success',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'unassign_supplier', 'supplier', { 
+      supplierName: supplier.name,
+      memberName: memberName,
+      memberId: memberId,
+      additionalInfo: `Unassigned supplier "${supplier.name}" from member "${memberName}"`
+    });
     
     res.status(200).json({
       success: true,
@@ -365,27 +277,9 @@ router.put("/unassign/:supplierId", isDistributorAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error unassigning supplier:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to unassign supplier on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to unassign supplier - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'unassign_supplier_failed', 'supplier', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({
       success: false,
@@ -437,6 +331,12 @@ router.get("/committed-members", isDistributorAdmin, async (req, res) => {
     // Group commitments by user
     const userCommitments = {};
     commitments.forEach(commitment => {
+      // Skip commitments with null or missing userId
+      if (!commitment.userId || !commitment.userId._id) {
+        console.warn('Skipping commitment with null userId:', commitment._id);
+        return;
+      }
+      
       const userId = commitment.userId._id.toString();
       if (!userCommitments[userId]) {
         userCommitments[userId] = {
@@ -448,7 +348,7 @@ router.get("/committed-members", isDistributorAdmin, async (req, res) => {
       }
       
       userCommitments[userId].commitments.push(commitment);
-      userCommitments[userId].totalSpent += commitment.totalPrice;
+      userCommitments[userId].totalSpent += (commitment.totalPrice || 0);
       userCommitments[userId].dealCount += 1;
     });
     
@@ -469,20 +369,10 @@ router.get("/committed-members", isDistributorAdmin, async (req, res) => {
       })
     );
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed committed members on behalf of distributor ${currentUser.name} (${currentUser.email}) - Found ${members.length} members`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed committed members - Found ${members.length} members`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'view_committed_members', 'members', { 
+      totalMembers: members.length,
+      additionalInfo: `Viewed committed members - Found ${members.length} members`
+    });
     
     res.status(200).json({
       success: true,
@@ -491,27 +381,9 @@ router.get("/committed-members", isDistributorAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error fetching committed members:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to view committed members on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to view committed members - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'view_committed_members_failed', 'members', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({
       success: false,
@@ -599,20 +471,13 @@ router.get("/export-member-data/:memberId", isDistributorAdmin, async (req, res)
       }
     };
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) exported member data for "${user.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) exported member data for "${user.name}"`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'export_member_data', 'member', { 
+      memberName: user.name,
+      memberId: memberId,
+      totalCommitments: commitments.length,
+      totalSpent: exportData.summary.totalSpent,
+      additionalInfo: `Exported member data for "${user.name}" (${commitments.length} commitments, $${exportData.summary.totalSpent.toFixed(2)} spent)`
+    });
     
     res.status(200).json({
       success: true,
@@ -621,27 +486,10 @@ router.get("/export-member-data/:memberId", isDistributorAdmin, async (req, res)
   } catch (error) {
     console.error('Error exporting member data:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to export member data on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to export member data - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'export_member_data_failed', 'member', { 
+      memberId: req.params.memberId,
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({
       success: false,
@@ -700,6 +548,12 @@ router.get("/export-supplier-data/:supplierId", isDistributorAdmin, async (req, 
     // Group commitments by member
     const memberData = {};
     commitments.forEach(commitment => {
+      // Skip commitments with null or missing userId
+      if (!commitment.userId || !commitment.userId._id) {
+        console.warn('Skipping commitment with null userId:', commitment._id);
+        return;
+      }
+      
       const userId = commitment.userId._id.toString();
       if (!memberData[userId]) {
         memberData[userId] = {
@@ -721,17 +575,17 @@ router.get("/export-supplier-data/:supplierId", isDistributorAdmin, async (req, 
       
       memberData[userId].commitments.push({
         id: commitment._id,
-        dealName: commitment.dealId.name,
-        dealDescription: commitment.dealId.description,
-        category: commitment.dealId.category,
+        dealName: commitment.dealId?.name || 'Unknown Deal',
+        dealDescription: commitment.dealId?.description || 'No description',
+        category: commitment.dealId?.category || 'Unknown',
         sizeCommitments: commitment.sizeCommitments,
-        totalPrice: commitment.totalPrice,
-        status: commitment.status,
+        totalPrice: commitment.totalPrice || 0,
+        status: commitment.status || 'Unknown',
         createdAt: commitment.createdAt
       });
       
       memberData[userId].summary.totalDeals += 1;
-      memberData[userId].summary.totalSpent += commitment.totalPrice;
+      memberData[userId].summary.totalSpent += (commitment.totalPrice || 0);
     });
     
     // Add members who have no commitments yet
@@ -770,20 +624,14 @@ router.get("/export-supplier-data/:supplierId", isDistributorAdmin, async (req, 
       }
     };
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) exported supplier data for "${supplier.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) exported supplier data for "${supplier.name}"`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    await logCollaboratorAction(req, 'export_supplier_data', 'supplier', { 
+      supplierName: supplier.name,
+      supplierId: supplierId,
+      totalMembers: exportData.summary.totalMembers,
+      totalCommitments: exportData.summary.totalCommitments,
+      totalValue: exportData.summary.totalValue,
+      additionalInfo: `Exported supplier data for "${supplier.name}" (${exportData.summary.totalMembers} members, ${exportData.summary.totalCommitments} commitments, $${exportData.summary.totalValue.toFixed(2)} value)`
+    });
     
     res.status(200).json({
       success: true,
@@ -792,27 +640,10 @@ router.get("/export-supplier-data/:supplierId", isDistributorAdmin, async (req, 
   } catch (error) {
     console.error('Error exporting supplier data:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to export supplier data on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to export supplier data - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    await logCollaboratorAction(req, 'export_supplier_data_failed', 'supplier', { 
+      supplierId: req.params.supplierId,
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({
       success: false,

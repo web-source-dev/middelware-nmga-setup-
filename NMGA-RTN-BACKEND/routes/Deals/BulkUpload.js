@@ -8,6 +8,7 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const User = require('../../models/User');
 const Log = require('../../models/Logs');
 const { isDistributorAdmin, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Configure multer for file upload with error handling
 const storage = multer.diskStorage({
@@ -63,7 +64,7 @@ const defaultImages = {
 };
 
 // Route to download CSV template
-router.get('/template', isDistributorAdmin, (req, res) => {
+router.get('/template', isDistributorAdmin, async (req, res) => {
     const headers = [
         { id: 'Name', title: 'Name' },
         { id: 'Description', title: 'Special Comment' },
@@ -95,6 +96,9 @@ router.get('/template', isDistributorAdmin, (req, res) => {
             'Image URLs': defaultImages['Wine'].join(';')
         }
     ];
+
+    // Log the action
+    await logCollaboratorAction(req, 'download_deals_template', 'deals template');
 
     // Write template with sample deals
     csvWriter.writeRecords(sampleDeals)
@@ -520,20 +524,10 @@ router.post('/upload', isDistributorAdmin, upload.single('file'), async (req, re
         if (errors.length > 0) {
             console.error('Validation errors found in CSV file:', errors);
             
-            // Log validation errors with admin impersonation details if applicable
-            if (isImpersonating) {
-                await Log.create({
-                    message: `Admin ${originalUser.name} (${originalUser.email}) attempted bulk upload with validation errors on behalf of distributor ${currentUser.name} (${currentUser.email}) - ${errors.length} errors found`,
-                    type: 'error',
-                    user_id: distributorId
-                });
-            } else {
-                await Log.create({
-                    message: `Distributor ${currentUser.name} (${currentUser.email}) attempted bulk upload with validation errors - ${errors.length} errors found`,
-                    type: 'error',
-                    user_id: distributorId
-                });
-            }
+            // Log validation errors
+            await logCollaboratorAction(req, 'bulk_upload_validation_errors', 'deals bulk upload', {
+                additionalInfo: `${errors.length} validation errors found`
+            });
             
             return res.status(400).json({ 
                 message: 'Validation errors found in CSV file', 
@@ -545,20 +539,10 @@ router.post('/upload', isDistributorAdmin, upload.single('file'), async (req, re
         if (deals.length === 0) {
             console.error('No valid deals found in the CSV file.');
             
-            // Log no deals found with admin impersonation details if applicable
-            if (isImpersonating) {
-                await Log.create({
-                    message: `Admin ${originalUser.name} (${originalUser.email}) attempted bulk upload with no valid deals on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-                    type: 'warning',
-                    user_id: distributorId
-                });
-            } else {
-                await Log.create({
-                    message: `Distributor ${currentUser.name} (${currentUser.email}) attempted bulk upload with no valid deals`,
-                    type: 'warning',
-                    user_id: distributorId
-                });
-            }
+            // Log no deals found
+            await logCollaboratorAction(req, 'bulk_upload_no_deals', 'deals bulk upload', {
+                additionalInfo: 'No valid deals found in CSV file'
+            });
             
             return res.status(400).json({ 
                 message: 'No valid deals found in the CSV file. Please check the file format and try again.',
@@ -570,20 +554,11 @@ router.post('/upload', isDistributorAdmin, upload.single('file'), async (req, re
         await Deal.insertMany(deals);
         console.log(`${deals.length} deals uploaded successfully.`); // Log successful upload
 
-        // Log the action with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) bulk uploaded ${deals.length} deals on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-                type: 'success',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) bulk uploaded ${deals.length} deals`,
-                type: 'success',
-                user_id: distributorId
-            });
-        }
+        // Log the action
+        await logCollaboratorAction(req, 'bulk_upload_deals', 'deals bulk upload', {
+            additionalInfo: `Successfully uploaded ${deals.length} deals`,
+            fileName: req.file.originalname
+        });
 
         // Clean up: delete the uploaded file
         fs.unlink(req.file.path, (err) => {
@@ -599,20 +574,10 @@ router.post('/upload', isDistributorAdmin, upload.single('file'), async (req, re
     } catch (error) {
         console.error('Upload error:', error); // Log the error
         
-        // Log the error with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) failed to bulk upload deals on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) failed to bulk upload deals - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        }
+        // Log the error
+        await logCollaboratorAction(req, 'bulk_upload_deals_failed', 'deals bulk upload', {
+            additionalInfo: `Error: ${error.message}`
+        });
         
         // Clean up file on error
         if (req.file) {

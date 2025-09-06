@@ -1,4 +1,21 @@
-import { getCurrentUserContext, isAuthenticated, isAdmin, isDistributor, isMember, isImpersonating } from '../services/api';
+import { 
+  getCurrentUserContext, 
+  isAuthenticated, 
+  isAdmin, 
+  isDistributor, 
+  isMember, 
+  isImpersonating,
+  isCollaborator,
+  isCollaboratorManager,
+  isDealManager,
+  isSupplierManager,
+  isMediaManager,
+  isCommitmentManager,
+  isSubstoreManager,
+  isCollaboratorViewer,
+  hasCollaboratorRole,
+  getCollaboratorInfo
+} from '../services/api';
 
 // Frontend middleware for route protection
 export const requireAuth = (Component) => {
@@ -90,9 +107,165 @@ export const withImpersonationContext = (Component) => {
   };
 };
 
+// Collaborator only route protection
+export const requireCollaborator = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isCollaborator()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Collaborator Manager only route protection
+export const requireCollaboratorManager = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isCollaboratorManager()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Deal Manager route protection
+export const requireDealManager = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isDealManager()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Supplier Manager route protection
+export const requireSupplierManager = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isSupplierManager()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Media Manager route protection
+export const requireMediaManager = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isMediaManager()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Commitment Manager route protection
+export const requireCommitmentManager = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isCommitmentManager()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Substore Manager route protection
+export const requireSubstoreManager = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isSubstoreManager()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Collaborator Viewer route protection
+export const requireCollaboratorViewer = (Component) => {
+  return (props) => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return null;
+    }
+    
+    if (!isCollaboratorViewer()) {
+      window.location.href = '/dashboard';
+      return null;
+    }
+    
+    return <Component {...props} />;
+  };
+};
+
+// Flexible collaborator role protection
+export const requireCollaboratorRole = (requiredRoles) => {
+  return (Component) => {
+    return (props) => {
+      if (!isAuthenticated()) {
+        window.location.href = '/login';
+        return null;
+      }
+      
+      if (!hasCollaboratorRole(requiredRoles)) {
+        window.location.href = '/dashboard';
+        return null;
+      }
+      
+      return <Component {...props} />;
+    };
+  };
+};
+
 // Hook for getting current user context
 export const useAuth = () => {
   const userContext = getCurrentUserContext();
+  const collaboratorInfo = getCollaboratorInfo();
   
   return {
     ...userContext,
@@ -103,7 +276,21 @@ export const useAuth = () => {
     isImpersonating: isImpersonating(),
     currentUserId: userContext.isImpersonating ? userContext.impersonatedUserId : userContext.user?.id,
     originalUserId: userContext.isImpersonating ? userContext.adminId : userContext.user?.id,
-    userRole: userContext.user?.role
+    userRole: userContext.user?.role,
+    // Collaborator functions
+    isCollaborator: isCollaborator(),
+    isCollaboratorManager: isCollaboratorManager(),
+    isDealManager: isDealManager(),
+    isSupplierManager: isSupplierManager(),
+    isMediaManager: isMediaManager(),
+    isCommitmentManager: isCommitmentManager(),
+    isSubstoreManager: isSubstoreManager(),
+    isCollaboratorViewer: isCollaboratorViewer(),
+    hasCollaboratorRole: hasCollaboratorRole,
+    // Collaborator info
+    collaboratorId: collaboratorInfo?.collaboratorId,
+    collaboratorRole: collaboratorInfo?.collaboratorRole,
+    collaboratorEmail: collaboratorInfo?.collaboratorEmail
   };
 };
 

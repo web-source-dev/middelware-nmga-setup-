@@ -5,6 +5,7 @@ const Deal = require('../../models/Deals');
 const User = require('../../models/User');
 const Log = require('../../models/Logs');
 const { isDistributorAdmin, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.get('/', isDistributorAdmin, async (req, res) => {
   try {
@@ -205,6 +206,12 @@ router.get('/', isDistributorAdmin, async (req, res) => {
     const categories = await Deal.distinct('category', { distributor: distributorId });
     
     // Return counts and filtered deals
+    await logCollaboratorAction(req, 'view_distributor_deals', 'deals', { 
+      totalDeals: deals.length,
+      categories: categories.length,
+      currentMonth: currentMonth,
+      additionalInfo: `Distributor viewed their deals with filters applied`
+    });
     return res.status(200).json({
       totalDeals: deals.length,
       deals: processedDeals,
@@ -214,6 +221,9 @@ router.get('/', isDistributorAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('Error fetching deals:', error);
+    await logCollaboratorAction(req, 'view_distributor_deals_failed', 'deals', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     return res.status(500).json({ 
       success: false, 
       message: 'Error fetching deals', 
@@ -231,12 +241,19 @@ router.get('/categories/:distributorId', isDistributorAdmin, async (req, res) =>
     // Get all distinct categories for the distributor
     const categories = await Deal.distinct('category', { distributor: distributorId });
     
+    await logCollaboratorAction(req, 'view_deal_categories', 'deals', { 
+      categoriesCount: categories.length,
+      additionalInfo: 'Distributor viewed their deal categories'
+    });
     return res.status(200).json({
       success: true,
       categories
     });
   } catch (error) {
     console.error('Error fetching categories:', error);
+    await logCollaboratorAction(req, 'view_deal_categories_failed', 'deals', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     return res.status(500).json({
       success: false,
       message: 'Error fetching categories',

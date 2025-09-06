@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { importUsers } = require('../../importUsers');
 const { generateUniqueLoginKey } = require('../../utils/loginKeyGenerator');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -27,6 +28,9 @@ router.post('/import-users', async (req, res) => {
         if (userRole !== 'admin') {
             return res.status(403).json({ success: false, message: 'Only administrators can import users' });
         }
+        
+        // Log the action
+        await logCollaboratorAction(req, 'import_data', 'user data import');
         
         // Call the import function
         const result = await importUsers();
@@ -59,10 +63,13 @@ router.post('/add-user', async (req, res) => {
     try {
         const user = new User({ name, email, role, businessName });
         await user.save();
-        await Log.create({ 
-            message: `System administrator successfully created a new ${role} account for ${name}`,
-            type: 'success', 
-            user_id: user._id
+        
+        // Log the action
+        await logCollaboratorAction(req, 'create_user', 'user account', {
+            targetUserName: name,
+            targetUserEmail: email,
+            targetUserRole: role,
+            additionalInfo: `New ${role} account created`
         });
 
         const token = crypto.randomBytes(20).toString('hex');
@@ -81,10 +88,15 @@ router.post('/add-user', async (req, res) => {
         res.status(200).json({ message: 'User added successfully' });
     } catch (error) {
         console.error('Error adding user:', error);
-        await Log.create({ 
-            message: `Account creation failed for ${name} (${role}): ${error.message}`,
-            type: 'error'
+        
+        // Log the error
+        await logCollaboratorAction(req, 'create_user_failed', 'user account', {
+            targetUserName: name,
+            targetUserEmail: email,
+            targetUserRole: role,
+            additionalInfo: `Error: ${error.message}`
         });
+        
         res.status(500).json({ message: 'Error adding user' });
     }
 });
@@ -103,19 +115,22 @@ router.post('/create-password', async (req, res) => {
         user.resetPasswordExpires = undefined;
         await user.save();
 
-        await Log.create({ 
-            message: `Account setup completed: ${user.name} has configured their authentication credentials`,
-            type: 'success',
-            user_id: user._id
+        // Log the action
+        await logCollaboratorAction(req, 'setup_password', 'user account', {
+            targetUserName: user.name,
+            targetUserEmail: user.email,
+            additionalInfo: 'Account setup completed'
         });
 
         res.status(200).json({ message: 'Password has been updated.' });
     } catch (error) {
         console.error('Error creating password:', error);
-        await Log.create({ 
-            message: `Account setup failed: Unable to configure authentication for ${user.name}. ${error.message}`,
-            type: 'error'
+        
+        // Log the error
+        await logCollaboratorAction(req, 'setup_password_failed', 'user account', {
+            additionalInfo: `Error: ${error.message}`
         });
+        
         res.status(500).json({ message: 'Error creating password' });
     }
 });

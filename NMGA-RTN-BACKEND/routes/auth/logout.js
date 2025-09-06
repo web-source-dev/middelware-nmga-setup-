@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Log = require('../../models/Logs');
 const User = require('../../models/User');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.post('/', async (req, res) => {
   try {
@@ -14,10 +15,9 @@ router.post('/', async (req, res) => {
     }
 
     // Log the logout event
-    await Log.create({
-      message: `Session terminated: ${user.name} has successfully ended their system access`,
-      type: 'success',
-      user_id: userId
+    await logCollaboratorAction(req, 'logout', 'user session', {
+      targetUserName: user.name,
+      targetUserEmail: user.email
     });
 
     res.status(200).send({ message: 'Logged out successfully' });

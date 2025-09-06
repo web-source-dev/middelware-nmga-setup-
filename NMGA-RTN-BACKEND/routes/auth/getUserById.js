@@ -2,11 +2,17 @@ const express = require('express');
 const router = express.Router();
 const User = require('../../models/User');
 const { isAuthenticated, isAdmin, isDistributorAdmin, isMemberAdmin } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get member profile - accessible by member or admin
 router.get('/co-op-member/:id', isMemberAdmin, async (req, res) => {
     const { id } = req.params;
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_member_profile', 'member profile', {
+            targetUserId: id
+        });
+        
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -21,6 +27,11 @@ router.get('/co-op-member/:id', isMemberAdmin, async (req, res) => {
 router.get('/distributor/:id', isDistributorAdmin, async (req, res) => {
     const { id } = req.params;
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_distributor_profile', 'distributor profile', {
+            targetUserId: id
+        });
+        
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -36,6 +47,11 @@ router.get('/distributor/:id', isDistributorAdmin, async (req, res) => {
 router.get('/profile/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_user_profile', 'user profile', {
+            targetUserId: id
+        });
+        
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 

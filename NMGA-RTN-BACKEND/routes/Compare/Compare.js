@@ -10,6 +10,7 @@ const csv = require('csv-parser');
 const mongoose = require('mongoose');
 const { isDistributorAdmin, getCurrentUserContext } = require('../../middleware/auth');
 const Log = require('../../models/Logs');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -143,46 +144,20 @@ router.get('/', isDistributorAdmin, async (req, res) => {
       };
     }));
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed comparison deals on behalf of distributor ${currentUser.name} (${currentUser.email}) - Found ${dealsWithComparisonsInMonth.length} deals`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed comparison deals - Found ${dealsWithComparisonsInMonth.length} deals`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_comparison_deals', 'comparison deals', {
+      additionalInfo: `Found ${dealsWithComparisonsInMonth.length} deals`,
+      monthFilter: monthFilter || 'all'
+    });
     
     res.status(200).json(dealsWithCompareStatus);
   } catch (error) {
     console.error('Error fetching deals for comparison:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to view comparison deals on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to view comparison deals - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    // Log the error
+    await logCollaboratorAction(req, 'view_comparison_deals_failed', 'comparison deals', {
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ message: 'Error fetching deals', error: error.message });
   }
@@ -236,49 +211,20 @@ router.get('/template/:dealId', isDistributorAdmin, async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=comparison-template-${dealId}.csv`);
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) downloaded comparison template for deal "${deal.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) downloaded comparison template for deal "${deal.name}"`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'download_comparison_template', 'comparison template', {
+      dealTitle: deal.name,
+      dealId: dealId
+    });
     
     res.status(200).send(csvContent);
   } catch (error) {
     console.error('Error generating template:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const userContext = getCurrentUserContext(req);
-      if (userContext && userContext.currentUser) {
-        const { currentUser, originalUser, isImpersonating } = userContext;
-        const distributorId = currentUser.id;
-        
-        if (isImpersonating) {
-          await Log.create({
-            message: `Admin ${originalUser.name} (${originalUser.email}) failed to download comparison template on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-            type: 'error',
-            user_id: distributorId
-          });
-        } else {
-          await Log.create({
-            message: `Distributor ${currentUser.name} (${currentUser.email}) failed to download comparison template - Error: ${error.message}`,
-            type: 'error',
-            user_id: distributorId
-          });
-        }
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    // Log the error
+    await logCollaboratorAction(req, 'download_comparison_template_failed', 'comparison template', {
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ message: 'Error generating template', error: error.message });
   }
@@ -481,20 +427,13 @@ router.post('/upload/:dealId',
     
     await compareRecord.save();
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) uploaded comparison data for deal "${deal.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'success',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) uploaded comparison data for deal "${deal.name}"`,
-        type: 'success',
-        user_id: distributorId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'upload_comparison_data', 'comparison data', {
+      dealTitle: deal.name,
+      dealId: dealId,
+      fileName: req.file.originalname,
+      additionalInfo: `Processed ${comparisonItems.length} comparison items`
+    });
     
     res.status(201).json({
       message: 'Comparison data processed successfully',
@@ -504,30 +443,10 @@ router.post('/upload/:dealId',
   } catch (error) {
     console.error('Error processing comparison:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const userContext = getCurrentUserContext(req);
-      if (userContext && userContext.currentUser) {
-        const { currentUser, originalUser, isImpersonating } = userContext;
-        const distributorId = currentUser.id;
-        
-        if (isImpersonating) {
-          await Log.create({
-            message: `Admin ${originalUser.name} (${originalUser.email}) failed to upload comparison data on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-            type: 'error',
-            user_id: distributorId
-          });
-        } else {
-          await Log.create({
-            message: `Distributor ${currentUser.name} (${currentUser.email}) failed to upload comparison data - Error: ${error.message}`,
-            type: 'error',
-            user_id: distributorId
-          });
-        }
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    // Log the error
+    await logCollaboratorAction(req, 'upload_comparison_data_failed', 'comparison data', {
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ 
       message: 'Error processing comparison', 
@@ -556,46 +475,19 @@ router.get('/details/:compareId', isDistributorAdmin, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to access this comparison' });
     }
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed comparison details on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed comparison details`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_comparison_details', 'comparison details', {
+      compareId: compareId
+    });
     
     res.status(200).json(comparison);
   } catch (error) {
     console.error('Error fetching comparison details:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to view comparison details on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to view comparison details - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    // Log the error
+    await logCollaboratorAction(req, 'view_comparison_details_failed', 'comparison details', {
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ message: 'Error fetching comparison details', error: error.message });
   }
@@ -647,46 +539,21 @@ router.get('/history/:dealId', isDistributorAdmin, async (req, res) => {
     .select('_id dealName fileName uploadDate summary createdAt')
     .lean();
     
-    // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed comparison history on behalf of distributor ${currentUser.name} (${currentUser.email}) - Found ${comparisons.length} comparisons`,
-        type: 'info',
-        user_id: distributorId
-      });
-    } else {
-      await Log.create({
-        message: `Distributor ${currentUser.name} (${currentUser.email}) viewed comparison history - Found ${comparisons.length} comparisons`,
-        type: 'info',
-        user_id: distributorId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_comparison_history', 'comparison history', {
+      dealId: dealId,
+      additionalInfo: `Found ${comparisons.length} comparisons`,
+      monthFilter: monthFilter || 'all'
+    });
     
     res.status(200).json(comparisons);
   } catch (error) {
     console.error('Error fetching comparison history:', error);
     
-    // Log the error with admin impersonation details if applicable
-    try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const distributorId = currentUser.id;
-      
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) failed to view comparison history on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      } else {
-        await Log.create({
-          message: `Distributor ${currentUser.name} (${currentUser.email}) failed to view comparison history - Error: ${error.message}`,
-          type: 'error',
-          user_id: distributorId
-        });
-      }
-    } catch (logError) {
-      console.error('Error logging:', logError);
-    }
+    // Log the error
+    await logCollaboratorAction(req, 'view_comparison_history_failed', 'comparison history', {
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ message: 'Error fetching comparison history', error: error.message });
   }

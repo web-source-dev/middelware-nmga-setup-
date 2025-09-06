@@ -6,6 +6,7 @@ const Log = require('../../models/Logs');
 const { createNotification, notifyUsersByRole } = require('../Common/Notification');
 const { broadcastDealUpdate } = require('../../utils/dealUpdates');
 const { isDistributorAdmin, getCurrentUserContext, isAdmin } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.delete('/:dealId', isDistributorAdmin, async (req, res) => {
   try {
@@ -32,10 +33,11 @@ router.delete('/:dealId', isDistributorAdmin, async (req, res) => {
     // Delete the deal
     await Deal.findByIdAndDelete(dealId);
 
-    // Create a log entry
-    await Log.create({
-      type: 'info',
-      message: `Deal "${deal.name}" has been deleted`,
+    // Log the action
+    await logCollaboratorAction(req, 'delete_deal', 'deal', {
+      dealTitle: deal.name,
+      dealId: dealId,
+      additionalInfo: 'Deal deleted successfully'
     });
 
     // Broadcast deal deletion
@@ -81,10 +83,11 @@ router.delete('/admin/:dealId', isAdmin, async (req, res) => {
     // Delete the deal
     await Deal.findByIdAndDelete(dealId);
 
-    // Create a log entry
-    await Log.create({
-      type: 'info',
-      message: `Deal "${deal.name}" has been deleted`,
+    // Log the action
+    await logCollaboratorAction(req, 'delete_deal', 'deal', {
+      dealTitle: deal.name,
+      dealId: dealId,
+      additionalInfo: 'Deal deleted successfully'
     });
 
     // Broadcast deal deletion

@@ -3,9 +3,13 @@ const router = express.Router();
 const Deal = require('../../models/Deals');
 const Payment = require('../../models/Paymentmodel');
 const { isAdmin } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 // Get deal analytics overview
 router.get('/overview', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_deal_analytics', 'deal analytics overview');
+        
         const total = await Deal.countDocuments();
         const active = await Deal.countDocuments({ status: 'active' });
 
@@ -80,6 +84,9 @@ router.get('/overview', isAdmin, async (req, res) => {
 // Get deal categories statistics
 router.get('/categories', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_deal_categories', 'deal categories statistics');
+        
         const categories = await Deal.aggregate([
             {
                 $group: {
@@ -112,6 +119,11 @@ router.get('/categories', isAdmin, async (req, res) => {
 // Get recent deals
 router.get('/recent', isAdmin, async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_recent_deals', 'recent deals analytics', {
+            limit: Math.min(parseInt(req.query.limit) || 5, 20)
+        });
+        
         const limit = Math.min(parseInt(req.query.limit) || 5, 20); // Cap at 20 items
         const recentDeals = await Deal.find()
             .sort({ createdAt: -1 })

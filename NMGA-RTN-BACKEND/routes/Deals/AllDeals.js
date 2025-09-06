@@ -10,6 +10,7 @@ const CommitmentNotificationTemplate = require('../../utils/EmailTemplates/Commi
 const { broadcastDealUpdate, broadcastSingleDealUpdate } = require('../../utils/dealUpdates');
 const { isDistributorAdmin,isAdmin, getCurrentUserContext } = require('../../middleware/auth');
 const { format } = require('date-fns');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get all deals with commitments for a distributor
 router.get('/distributor-deals', isDistributorAdmin, async (req, res) => {
@@ -185,6 +186,16 @@ router.get('/distributor-deals', isDistributorAdmin, async (req, res) => {
         });
 
         console.log("dealsWithStats" , dealsWithStats)
+        
+        // Log the action
+        await logCollaboratorAction(req, 'view_distributor_deals', 'deals list', {
+            additionalInfo: `Found ${dealsWithStats.length} deals with commitments`,
+            search: search || '',
+            month: month || '',
+            status: status || '',
+            commitmentStatus: commitmentStatus || ''
+        });
+        
         res.json({
             success: true,
             deals: dealsWithStats,
@@ -381,6 +392,16 @@ router.get('/admin-all-deals', isAdmin, async (req, res) => {
         
         console.log("dealsWithStats" , dealsWithStats)
 
+        // Log the action
+        await logCollaboratorAction(req, 'view_admin_all_deals', 'deals list', {
+            additionalInfo: `Found ${dealsWithStats.length} deals with commitments`,
+            search: search || '',
+            month: month || '',
+            status: status || '',
+            commitmentStatus: commitmentStatus || '',
+            distributorId: distributorId || 'all'
+        });
+
         res.json({
             success: true,
             deals: dealsWithStats,
@@ -476,20 +497,12 @@ router.post('/bulk-approve-commitments', isDistributorAdmin, async (req, res) =>
             bulkStatus: 'approved'
         }, { new: true });
 
-        // Log the action with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) bulk approved ${result.modifiedCount} commitments for deal "${deal.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-                type: 'success',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) bulk approved ${result.modifiedCount} commitments for deal "${deal.name}"`,
-                type: 'success',
-                user_id: distributorId
-            });
-        }
+        // Log the action
+        await logCollaboratorAction(req, 'bulk_approve_commitments', 'commitments', {
+            dealTitle: deal.name,
+            dealId: dealId,
+            additionalInfo: `Approved ${result.modifiedCount} commitments`
+        });
 
         // Broadcast real-time updates for the deal update
         if (updatedDeal) {
@@ -505,20 +518,10 @@ router.post('/bulk-approve-commitments', isDistributorAdmin, async (req, res) =>
     } catch (error) {
         console.error('Error bulk approving commitments:', error);
         
-        // Log the error with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) failed to bulk approve commitments for deal on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) failed to bulk approve commitments - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        }
+        // Log the error
+        await logCollaboratorAction(req, 'bulk_approve_commitments_failed', 'commitments', {
+            additionalInfo: `Error: ${error.message}`
+        });
         
         res.status(500).json({ success: false, message: 'Error processing bulk approval' });
     }
@@ -585,20 +588,12 @@ router.post('/bulk-decline-commitments', isDistributorAdmin, async (req, res) =>
             bulkStatus: 'rejected'
         }, { new: true });
 
-        // Log the action with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) bulk declined ${result.modifiedCount} commitments for deal "${deal.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-                type: 'success',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) bulk declined ${result.modifiedCount} commitments for deal "${deal.name}"`,
-                type: 'success',
-                user_id: distributorId
-            });
-        }
+        // Log the action
+        await logCollaboratorAction(req, 'bulk_decline_commitments', 'commitments', {
+            dealTitle: deal.name,
+            dealId: dealId,
+            additionalInfo: `Declined ${result.modifiedCount} commitments`
+        });
 
         // Broadcast real-time updates for the deal update
         if (updatedDeal) {
@@ -614,20 +609,10 @@ router.post('/bulk-decline-commitments', isDistributorAdmin, async (req, res) =>
     } catch (error) {
         console.error('Error bulk declining commitments:', error);
         
-        // Log the error with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) failed to bulk decline commitments for deal on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) failed to bulk decline commitments - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        }
+        // Log the error
+        await logCollaboratorAction(req, 'bulk_decline_commitments_failed', 'commitments', {
+            additionalInfo: `Error: ${error.message}`
+        });
         
         res.status(500).json({ success: false, message: 'Error processing bulk decline' });
     }
@@ -744,20 +729,14 @@ router.post('/update-commitment-status', isDistributorAdmin, async (req, res) =>
             });
         }
 
-        // Log the action with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) ${status} commitment for deal "${commitment.dealId.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-                type: 'success',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) ${status} commitment for deal "${commitment.dealId.name}"`,
-                type: 'success',
-                user_id: distributorId
-            });
-        }
+        // Log the action
+        await logCollaboratorAction(req, 'update_commitment_status', 'commitment', {
+            dealTitle: commitment.dealId.name,
+            dealId: commitment.dealId._id,
+            commitmentId: commitmentId,
+            status: status,
+            additionalInfo: `Updated commitment status to ${status}`
+        });
 
         res.json({
             success: true,
@@ -767,20 +746,10 @@ router.post('/update-commitment-status', isDistributorAdmin, async (req, res) =>
     } catch (error) {
         console.error('Error updating commitment status:', error);
         
-        // Log the error with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) failed to update commitment status on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) failed to update commitment status - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        }
+        // Log the error
+        await logCollaboratorAction(req, 'update_commitment_status_failed', 'commitment', {
+            additionalInfo: `Error: ${error.message}`
+        });
         
         res.status(500).json({ success: false, message: 'Error updating commitment status' });
     }
@@ -918,20 +887,12 @@ router.get('/deal-analytics/:dealId', isDistributorAdmin, async (req, res) => {
             averageDailyOrders
         };
 
-        // Log the action with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) viewed analytics for deal "${deal.name}" on behalf of distributor ${currentUser.name} (${currentUser.email})`,
-                type: 'info',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) viewed analytics for deal "${deal.name}"`,
-                type: 'info',
-                user_id: distributorId
-            });
-        }
+        // Log the action
+        await logCollaboratorAction(req, 'view_deal_analytics', 'deal analytics', {
+            dealTitle: deal.name,
+            dealId: dealId,
+            additionalInfo: `Analytics for deal with ${totalUniqueMembers} unique members`
+        });
 
         res.json({
             success: true,
@@ -957,20 +918,10 @@ router.get('/deal-analytics/:dealId', isDistributorAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error fetching deal analytics:', error);
         
-        // Log the error with admin impersonation details if applicable
-        if (isImpersonating) {
-            await Log.create({
-                message: `Admin ${originalUser.name} (${originalUser.email}) failed to view analytics for deal on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        } else {
-            await Log.create({
-                message: `Distributor ${currentUser.name} (${currentUser.email}) failed to view analytics for deal - Error: ${error.message}`,
-                type: 'error',
-                user_id: distributorId
-            });
-        }
+        // Log the error
+        await logCollaboratorAction(req, 'view_deal_analytics_failed', 'deal analytics', {
+            additionalInfo: `Error: ${error.message}`
+        });
         
         res.status(500).json({ success: false, message: 'Error fetching analytics data' });
     }
@@ -1085,10 +1036,11 @@ router.post('/bulk-approve-commitments-admin', isAdmin, async (req, res) => {
             bulkStatus: 'approved'
         }, { new: true });
         
-        await Log.create({
-            message: `Admin bulk approved ${result.modifiedCount} commitments for deal "${deal.name}"`,
-            type: 'success',
-            user_id: distributorId
+        // Log the action
+        await logCollaboratorAction(req, 'bulk_approve_commitments_admin', 'commitments', {
+            dealTitle: deal.name,
+            dealId: dealId,
+            additionalInfo: `Admin approved ${result.modifiedCount} commitments`
         });
 
         // Broadcast real-time updates for the deal update
@@ -1167,11 +1119,11 @@ router.post('/bulk-decline-commitments-admin', isAdmin, async (req, res) => {
             bulkStatus: 'rejected'
         }, { new: true });
 
-        // Log the action with admin impersonation details if applicable
-        await Log.create({
-            message: `Admin bulk declined ${result.modifiedCount} commitments for deal "${deal.name}"`,
-            type: 'success',
-            user_id: distributorId
+        // Log the action
+        await logCollaboratorAction(req, 'bulk_decline_commitments_admin', 'commitments', {
+            dealTitle: deal.name,
+            dealId: dealId,
+            additionalInfo: `Admin declined ${result.modifiedCount} commitments`
         });
 
         // Broadcast real-time updates for the deal update

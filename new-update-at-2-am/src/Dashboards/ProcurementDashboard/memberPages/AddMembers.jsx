@@ -50,7 +50,33 @@ const modalStyle = {
 const AddMembers = () => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
-  const { currentUserId, userRole, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    userRole, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin,
+    isCollaboratorManager,
+    isSubstoreManager 
+  } = useAuth();
+
+  // Check if user can perform actions (add stores, manage stores)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Substore manager
+    if (isSubstoreManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -168,6 +194,7 @@ const AddMembers = () => {
           color="primary"
           startIcon={<PersonAddIcon color="primary.contrastText" />}
           onClick={() => setOpen(true)}
+          disabled={!canPerformActions()}
         >
           Add New Store
         </Button>
@@ -256,6 +283,7 @@ const AddMembers = () => {
                 placeholder="Full Name"
                 fullWidth
                 required
+                disabled={!canPerformActions()}
               />
 
               <TextField
@@ -267,6 +295,7 @@ const AddMembers = () => {
                 placeholder="Email Address"
                 fullWidth
                 required
+                disabled={!canPerformActions()}
               />
 
               <TextField
@@ -276,6 +305,7 @@ const AddMembers = () => {
                 onChange={handleChange}
                 placeholder="Store Name"
                 fullWidth
+                disabled={!canPerformActions()}
               />
 
               <TextField
@@ -285,6 +315,7 @@ const AddMembers = () => {
                 onChange={handleChange}
                 placeholder="Contact Person"
                 fullWidth
+                disabled={!canPerformActions()}
               />
 
               <TextField
@@ -294,6 +325,7 @@ const AddMembers = () => {
                 onChange={handleChange}
                 placeholder="Phone Number"
                 fullWidth
+                disabled={!canPerformActions()}
               />
 
               <TextField
@@ -303,11 +335,13 @@ const AddMembers = () => {
                 onChange={handleChange}
                 placeholder="Address"
                 fullWidth
+                disabled={!canPerformActions()}
               />
 
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                 <Button
                   onClick={() => setOpen(false)}
+                  disabled={!canPerformActions()}
                   sx={{ mr: 1 }}
                 >
                   Cancel
@@ -316,7 +350,7 @@ const AddMembers = () => {
                   variant="contained"
                   color="primary"
                   onClick={handleSubmit}
-                  disabled={isLoading}
+                  disabled={isLoading || !canPerformActions()}
                 >
                   Add Store
                 </Button>

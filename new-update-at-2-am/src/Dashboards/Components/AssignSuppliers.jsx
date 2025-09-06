@@ -207,8 +207,33 @@ const AssignSuppliers = () => {
   const [supplierMemberCounts, setSupplierMemberCounts] = useState({});
 
   // Get user data from middleware
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isSupplierManager 
+  } = useAuth();
   const distributorId = currentUserId;
+
+  // Check if user can perform actions (assign, remove, create suppliers)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Supplier manager
+    if (isSupplierManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -831,6 +856,7 @@ const AssignSuppliers = () => {
                               setSelectedSupplierToRemove(supplier._id);
                               setAlertOpen(true);
                             }}
+                            disabled={!canPerformActions()}
                             sx={{ 
                               px: 3,
                               py: 1,
@@ -927,7 +953,7 @@ const AssignSuppliers = () => {
                             variant="contained"
                             color="primary.main"
                             onClick={handleAssignSupplier}
-                            disabled={!selectedSupplierId}
+                            disabled={!selectedSupplierId || !canPerformActions()}
                             fullWidth
                             sx={{ 
                               height: '100%',
@@ -974,6 +1000,7 @@ const AssignSuppliers = () => {
                         variant="outlined"
                         color="primary.contrastText"
                         onClick={() => setModalOpen(true)}
+                        disabled={!canPerformActions()}
                         sx={{ 
                           borderRadius: 2,
                           borderWidth: 2,
@@ -1074,7 +1101,7 @@ const AssignSuppliers = () => {
                             variant="contained"
                             color="primary.contrastText"
                             onClick={handleAssignSupplier}
-                            disabled={!selectedSupplierId}
+                            disabled={!selectedSupplierId || !canPerformActions()}
                             fullWidth
                             sx={{ 
                               height: '100%',
@@ -1121,6 +1148,7 @@ const AssignSuppliers = () => {
                         variant="outlined"
                         color="primary.contrastText"
                         onClick={() => setModalOpen(true)}
+                        disabled={!canPerformActions()}
                         sx={{ 
                           borderRadius: 2,
                           borderWidth: 2,
@@ -1349,7 +1377,7 @@ const AssignSuppliers = () => {
               color="secondary" 
               onClick={handleCreateSupplier}
               startIcon={<AddIcon />}
-              disabled={!formData.name || !formData.email}
+              disabled={!formData.name || !formData.email || !canPerformActions()}
               sx={{ 
                 borderRadius: 2,
                 minWidth: 150,

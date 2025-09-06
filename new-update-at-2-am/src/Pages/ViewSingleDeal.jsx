@@ -96,7 +96,16 @@ const ViewSingleDeal = () => {
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalSavings, setTotalSavings] = useState(0);
   
-  const { currentUserId, userRole, isAuthenticated, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    userRole, 
+    isAuthenticated, 
+    isImpersonating,
+    isCollaborator,
+    isAdmin,
+    isCollaboratorManager,
+    isCommitmentManager
+  } = useAuth();
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -116,6 +125,24 @@ const ViewSingleDeal = () => {
     const commitmentEndDate = new Date(deal.commitmentEndsAt);
     const now = new Date();
     return now >= commitmentStartDate && now <= commitmentEndDate;
+  };
+
+  // Check if user can perform commitment actions
+  const canPerformCommitmentActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Commitment manager
+    if (isCommitmentManager) return true;
+    
+    // All other collaborators cannot perform commitment actions
+    return false;
   };
 
   useEffect(() => {
@@ -349,6 +376,16 @@ const ViewSingleDeal = () => {
       setToast({
         open: true,
         message: 'Only Co-op members can commit to deals',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Check if user has permission to perform commitment actions
+    if (!canPerformCommitmentActions()) {
+      setToast({
+        open: true,
+        message: 'You do not have permission to make commitments. Only account owners, admins, managers, and commitment managers can make commitments.',
         severity: 'warning'
       });
       return;
@@ -1741,6 +1778,22 @@ const ViewSingleDeal = () => {
                     You can make commitments during the active period.
                   </Typography>
                 </Alert>
+              ) : !canPerformCommitmentActions() ? (
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  disabled
+                  sx={{ 
+                    py: 1.5,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    color: theme.palette.text.disabled,
+                    borderColor: theme.palette.text.disabled
+                  }}
+                >
+                  No Permission to Commit
+                </Button>
               ) : (
                 <Button
                   variant="contained"
@@ -1898,6 +1951,7 @@ const ViewSingleDeal = () => {
                                 value={quantity}
                                 onChange={(e) => handleSizeQuantityChange(size.size, e.target.value)}
                                 inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                                disabled={!canPerformCommitmentActions()}
                                 sx={{ width: 80 }}
                               />
                             </TableCell>
@@ -2288,7 +2342,7 @@ const ViewSingleDeal = () => {
             variant="contained"
             color={userCommitment ? "warning" : "primary"}
             onClick={handleCommitDeal}
-            disabled={isCommitting || totalQuantity === 0}
+            disabled={isCommitting || totalQuantity === 0 || !canPerformCommitmentActions()}
             sx={{ 
               borderRadius: 2,
               background: userCommitment ? 'linear-gradient(45deg, #FF9800 30%, #FFC107 90%)' : undefined,
@@ -2299,6 +2353,8 @@ const ViewSingleDeal = () => {
           >
             {isCommitting ? (
               <CircularProgress size={24} color="inherit" />
+            ) : !canPerformCommitmentActions() ? (
+              'No Permission'
             ) : (
               userCommitment ? 'Update Commitment' : 'Confirm Commitment'
             )}

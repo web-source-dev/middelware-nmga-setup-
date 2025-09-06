@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require('../../models/User');
 const Commitment = require('../../models/Commitments');
 const { isAdmin, getCurrentUserContext } = require('../../middleware/auth');
-const Log = require('../../models/Logs');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get members who haven't committed to any deals in the past month (admin only)
 router.get('/not-committing/admin', isAdmin, async (req, res) => {
@@ -80,10 +80,8 @@ router.get('/not-committing/admin', isAdmin, async (req, res) => {
     const longTermInactive = inactiveMembersWithDetails.filter(m => m.hasCommitted && m.inactiveDays > 90);
 
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) viewed inactive members - Found ${inactiveMembersWithDetails.length} inactive members`,
-      type: 'info',
-      user_id: adminId
+    await logCollaboratorAction(req, 'view_inactive_members', 'inactive members report', {
+      additionalInfo: `Found ${inactiveMembersWithDetails.length} inactive members`
     });
 
     return res.json({ 
@@ -102,13 +100,8 @@ router.get('/not-committing/admin', isAdmin, async (req, res) => {
     
     // Log the error
     try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view inactive members - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
+      await logCollaboratorAction(req, 'view_inactive_members_failed', 'inactive members report', {
+        additionalInfo: `Error: ${error.message}`
       });
     } catch (logError) {
       console.error('Error logging:', logError);
@@ -142,10 +135,8 @@ router.get('/blocked-members/admin', isAdmin, async (req, res) => {
     }));
 
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) viewed blocked members - Found ${blockedMembersWithDetails.length} blocked members`,
-      type: 'info',
-      user_id: adminId
+    await logCollaboratorAction(req, 'view_blocked_members', 'blocked members report', {
+      additionalInfo: `Found ${blockedMembersWithDetails.length} blocked members`
     });
 
     return res.json({ 
@@ -157,13 +148,8 @@ router.get('/blocked-members/admin', isAdmin, async (req, res) => {
     
     // Log the error
     try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view blocked members - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
+      await logCollaboratorAction(req, 'view_blocked_members_failed', 'blocked members report', {
+        additionalInfo: `Error: ${error.message}`
       });
     } catch (logError) {
       console.error('Error logging:', logError);
@@ -198,10 +184,10 @@ router.put('/inactivate/:userId/admin', isAdmin, async (req, res) => {
     }
 
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) inactivated member ${updatedUser.name} (${updatedUser.email})`,
-      type: 'warning',
-      user_id: adminId
+    await logCollaboratorAction(req, 'block_user', 'user management', {
+      targetUserName: updatedUser.name,
+      targetUserEmail: updatedUser.email,
+      additionalInfo: 'Member inactivated'
     });
 
     return res.json({ 
@@ -214,13 +200,8 @@ router.put('/inactivate/:userId/admin', isAdmin, async (req, res) => {
     
     // Log the error
     try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to inactivate user - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
+      await logCollaboratorAction(req, 'block_user_failed', 'user management', {
+        additionalInfo: `Error: ${error.message}`
       });
     } catch (logError) {
       console.error('Error logging:', logError);
@@ -255,10 +236,10 @@ router.put('/reactivate/:userId/admin', isAdmin, async (req, res) => {
     }
 
     // Log the action
-    await Log.create({
-      message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) reactivated member ${updatedUser.name} (${updatedUser.email})`,
-      type: 'info',
-      user_id: adminId
+    await logCollaboratorAction(req, 'unblock_user', 'user management', {
+      targetUserName: updatedUser.name,
+      targetUserEmail: updatedUser.email,
+      additionalInfo: 'Member reactivated'
     });
 
     return res.json({ 
@@ -271,13 +252,8 @@ router.put('/reactivate/:userId/admin', isAdmin, async (req, res) => {
     
     // Log the error
     try {
-      const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-      const adminId = currentUser.id;
-      
-      await Log.create({
-        message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to reactivate user - Error: ${error.message}`,
-        type: 'error',
-        user_id: adminId
+      await logCollaboratorAction(req, 'unblock_user_failed', 'user management', {
+        additionalInfo: `Error: ${error.message}`
       });
     } catch (logError) {
       console.error('Error logging:', logError);

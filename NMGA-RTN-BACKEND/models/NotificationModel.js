@@ -18,7 +18,8 @@ const notificationSchema = new mongoose.Schema({
       'favorite', // add, remove
       'commitment', // new, status change
       'chat', // new message, unread message
-      'discount' // tier changed
+      'discount', // tier changed
+      'collaborator', // add, remove, update, status change
     ],
     required: true
   },
@@ -38,7 +39,18 @@ const notificationSchema = new mongoose.Schema({
       'tier_changed',
       'commitment_status_changed',
       'new_message',
-      'unread_message'
+      'unread_message',
+      'collaborator_added',
+      'collaborator_removed',
+      'collaborator_updated',
+      'collaborator_status_changed',
+      'collaborator_login',
+      'collaborator_logout',
+      'collaborator_register',
+      'collaborator_deal_created',
+      'collaborator_deal_updated',
+      'collaborator_deal_deleted',
+
     ],
     required: true
   },

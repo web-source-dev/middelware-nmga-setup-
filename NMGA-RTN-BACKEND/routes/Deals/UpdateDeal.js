@@ -6,6 +6,7 @@ const Log = require('../../models/Logs');
 const { createNotification, notifyUsersByRole } = require('../Common/Notification');
 const { broadcastDealUpdate, broadcastSingleDealUpdate } = require('../../utils/dealUpdates');
 const { isDistributorAdmin, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.put('/:dealId', isDistributorAdmin, async (req, res) => {
   try {
@@ -14,10 +15,9 @@ router.put('/:dealId', isDistributorAdmin, async (req, res) => {
     const updateData = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(dealId)) {
-      await Log.create({
-        message: `Warning: Invalid deal information provided for update`,
-        type: 'warning',
-        user_id: req.user?.id
+      await logCollaboratorAction(req, 'update_deal_failed', 'deal', { 
+        dealId: dealId,
+        additionalInfo: 'Invalid deal ID provided for update'
       });
       return res.status(400).json({ message: 'Invalid deal ID' });
     }
@@ -115,10 +115,9 @@ router.put('/:dealId', isDistributorAdmin, async (req, res) => {
     ).populate('distributor', 'name _id');
 
     if (!deal) {
-      await Log.create({
-        message: `Warning: Attempt to update non-existent deal`,
-        type: 'warning',
-        user_id: req.user?.id
+      await logCollaboratorAction(req, 'update_deal_failed', 'deal', { 
+        dealId: dealId,
+        additionalInfo: 'Attempt to update non-existent deal'
       });
       return res.status(404).json({ message: 'Deal not found' });
     }
@@ -169,38 +168,24 @@ router.put('/:dealId', isDistributorAdmin, async (req, res) => {
     });
 
     // Log the action with admin impersonation details if applicable
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) updated deal "${deal.name}" on behalf of distributor ${currentUser.name} (${currentUser.email}) - Modified: ${Object.keys(updateData).join(', ')}`,
-        type: 'info',
-        user_id: currentUser.id
-      });
-    } else {
-      await Log.create({
-        message: `Deal "${deal.name}" updated - Modified: ${Object.keys(updateData).join(', ')}`,
-        type: 'info',
-        user_id: currentUser.id
-      });
-    }
+    await logCollaboratorAction(req, 'update_deal', 'deal', { 
+      dealId: dealId,
+      dealName: deal.name,
+      modifiedFields: Object.keys(updateData).join(', '),
+      notificationText: notificationText,
+      additionalInfo: `Deal updated with modifications: ${Object.keys(updateData).join(', ')}`
+    });
     res.status(200).json(deal);
   } catch (err) {
     const deal = await Deal.findById(req.params.dealId);
     const dealName = deal ? deal.name : 'unknown deal';
     const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
     
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) failed to update deal "${dealName}" on behalf of distributor ${currentUser.name} (${currentUser.email}) - Error: ${err.message}`,
-        type: 'error',
-        user_id: currentUser.id
-      });
-    } else {
-      await Log.create({
-        message: `Failed to update deal "${dealName}" - Error: ${err.message}`,
-        type: 'error',
-        user_id: currentUser.id
-      });
-    }
+    await logCollaboratorAction(req, 'update_deal_failed', 'deal', { 
+      dealId: req.params.dealId,
+      dealName: dealName,
+      additionalInfo: `Error: ${err.message}`
+    });
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }

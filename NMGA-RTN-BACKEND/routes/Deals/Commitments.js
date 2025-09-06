@@ -8,6 +8,7 @@ const { sendDealMessage } = require('../../utils/message');
 const { createNotification, notifyUsersByRole } = require('../Common/Notification');
 const DailyCommitmentSummary = require('../../models/DailyCommitmentSummary');
 const { isAuthenticated, isMemberAdmin, getCurrentUserContext, isAdmin } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 const router = express.Router();
 
 // Create a new commitment or update existing one (Get Deal)
@@ -467,6 +468,14 @@ router.post("/buy/:dealId", isMemberAdmin, async (req, res) => {
       priority: 'medium'
     });
 
+    // Log the action
+    await logCollaboratorAction(req, 'create_commitment', 'commitment', {
+      dealTitle: deal.name,
+      dealId: dealId,
+      commitmentId: commitment._id,
+      additionalInfo: `Committed to ${processedSizeCommitments.reduce((total, sc) => total + sc.quantity, 0)} units`
+    });
+
     res.json({
       message: "Successfully committed to the deal",
       commitment,
@@ -699,6 +708,15 @@ router.put("/update-status", async (req, res) => {
       }
     }
 
+    // Log the action
+    await logCollaboratorAction(req, 'update_commitment_status', 'commitment', {
+      dealTitle: commitment.dealId.name,
+      dealId: commitment.dealId._id,
+      commitmentId: commitmentId,
+      status: status,
+      additionalInfo: `Updated commitment status to ${status}`
+    });
+
     res.json({
       message: "Commitment status updated successfully",
       commitment
@@ -723,6 +741,12 @@ router.get("/", isAuthenticated, async (req, res) => {
         path: 'dealId',
         select: 'name description category sizes totalSold totalRevenue views impressions discountTiers'
       });
+    
+    // Log the action
+    await logCollaboratorAction(req, 'view_user_commitments', 'user commitments', {
+      additionalInfo: `Found ${commitments.length} commitments`
+    });
+    
     res.json(commitments);
   } catch (error) {
     console.error("Error fetching commitments:", error);

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const Log = require('../../models/Logs'); // Add this line to require the Logs model
 const passwordResetEmail = require('../../utils/EmailTemplates/passwordResetEmail');
 const { sendAuthMessage } = require('../../utils/message');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 require('dotenv').config();
 router.post('/', async (req, res) => {
   const { email } = req.body;
@@ -31,12 +32,11 @@ router.post('/', async (req, res) => {
 
     res.status(200).json({ message: 'Email sent' });
 
-    const log = new Log({
-      message: `Password reset link sent to ${user.email}`,
-      type: 'info',
-      user_id: user._id
+    // Log the action
+    await logCollaboratorAction(req, 'reset_password', 'password reset', {
+      targetUserEmail: user.email,
+      additionalInfo: 'Password reset link sent'
     });
-    await log.save();
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }

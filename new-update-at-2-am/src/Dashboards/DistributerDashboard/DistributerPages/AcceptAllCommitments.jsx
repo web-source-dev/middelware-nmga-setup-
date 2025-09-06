@@ -83,7 +83,14 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }));
 
 const AcceptAllCommitments = () => {
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isDealManager 
+  } = useAuth();
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -142,6 +149,24 @@ const AcceptAllCommitments = () => {
   const distributorId = currentUserId;
 
   const navigate = useNavigate();
+
+  // Check if user can perform actions (approve/decline)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
 
   // Create a debounced search function
   const debouncedSearch = useCallback(
@@ -730,7 +755,7 @@ const AcceptAllCommitments = () => {
           gap={1}
           alignItems="center"
         >
-          {dealsWithPendingCommitments.length > 0 && (
+          {dealsWithPendingCommitments.length > 0 && canPerformActions() && (
             <>
               <FormControlLabel
                 control={
@@ -803,7 +828,7 @@ const AcceptAllCommitments = () => {
           <TableHead>
             <TableRow>
               <StyledTableCell padding="checkbox" sx={{ display: { xs: 'table-cell', sm: 'table-cell' } }}>
-                {dealsWithPendingCommitments.length > 0 && (
+                {dealsWithPendingCommitments.length > 0 && canPerformActions() && (
                   <Checkbox
                     checked={selectAllDeals}
                     onChange={(e) => setSelectAllDeals(e.target.checked)}
@@ -825,7 +850,7 @@ const AcceptAllCommitments = () => {
               deals.map((deal) => (
                 <TableRow key={deal._id}>
                   <StyledTableCell padding="checkbox" sx={{ display: { xs: 'table-cell', sm: 'table-cell' } }}>
-                    {deal.pendingCommitments > 0 && (
+                    {deal.pendingCommitments > 0 && canPerformActions() && (
                       <Checkbox
                         checked={selectedDeals.includes(deal._id)}
                         onChange={() => handleDealSelect(deal._id)}
@@ -872,7 +897,7 @@ const AcceptAllCommitments = () => {
                               variant="contained"
                               color="primary"
                               onClick={() => handleBulkAction(deal._id, 'approve')}
-                              disabled={actionInProgress || deal.pendingCommitments === 0}
+                              disabled={actionInProgress || deal.pendingCommitments === 0 || !canPerformActions()}
                             >
                               Approve
                             </Button>
@@ -881,7 +906,7 @@ const AcceptAllCommitments = () => {
                               variant="contained"
                               color="error"
                               onClick={() => handleBulkAction(deal._id, 'decline')}
-                              disabled={actionInProgress || deal.pendingCommitments === 0}
+                              disabled={actionInProgress || deal.pendingCommitments === 0 || !canPerformActions()}
                             >
                               Decline
                             </Button>
@@ -1204,7 +1229,7 @@ const AcceptAllCommitments = () => {
               handleBulkAction(selectedDealId._id, 'approve');
               handleMenuClose();
             }}
-            disabled={actionInProgress || !selectedDealId?.pendingCommitments}
+            disabled={actionInProgress || !selectedDealId?.pendingCommitments || !canPerformActions()}
           >
             <ListItemIcon>
               <CheckIcon fontSize="small" color="primary.contrastText" />
@@ -1216,7 +1241,7 @@ const AcceptAllCommitments = () => {
               handleBulkAction(selectedDealId._id, 'decline');
               handleMenuClose();
             }}
-            disabled={actionInProgress || !selectedDealId?.pendingCommitments}
+            disabled={actionInProgress || !selectedDealId?.pendingCommitments || !canPerformActions()}
           >
             <ListItemIcon>
               <CloseIcon fontSize="small" color="primary.contrastText" />

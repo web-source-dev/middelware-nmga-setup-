@@ -22,6 +22,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import MovieIcon from '@mui/icons-material/Movie';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import MediaSelectorWrapper from './MediaSelectorWrapper';
+import { useAuth } from '../../middleware/auth';
 
 /**
  * MediaSelector component for selecting media from MediaManager
@@ -34,6 +35,36 @@ const MediaSelector = ({ selectedMedia = [], onSelect, onRemove }) => {
   const [open, setOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Get user info from middleware
+  const { 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager, 
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (select media)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   
   const handleOpen = () => {
     setOpen(true);
@@ -89,6 +120,7 @@ const MediaSelector = ({ selectedMedia = [], onSelect, onRemove }) => {
       >
         <Button
           onClick={handleOpen}
+          disabled={!canPerformActions()}
           fullWidth
           sx={{
             display: 'flex',

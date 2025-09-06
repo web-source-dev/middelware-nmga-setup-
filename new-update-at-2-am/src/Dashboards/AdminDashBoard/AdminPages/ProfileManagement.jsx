@@ -36,7 +36,29 @@ const ProfileSkeleton = () => (
 
 const ProfileManagement = () => {
   const { userId } = useParams();
-  const { currentUserId, isImpersonating, userRole } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    userRole, 
+    isCollaborator, 
+    isAdmin,
+    isCollaboratorManager 
+  } = useAuth();
+
+  // Check if user can perform actions (edit profile, change settings)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   const [user, setUser] = useState(null);
   const [logs, setLogs] = useState([]);
   const [tabIndex, setTabIndex] = useState(0);
@@ -388,12 +410,32 @@ const ProfileManagement = () => {
           {userRole === 'admin' && !isImpersonating && user && (
             <>
               {user.isBlocked ? (
-                <Button startIcon={<LockOpen />} color="secondary" onClick={handleUnblockUser}>Unblock</Button>
+                <Button 
+                  startIcon={<LockOpen />} 
+                  color="secondary" 
+                  onClick={handleUnblockUser}
+                  disabled={!canPerformActions()}
+                >
+                  Unblock
+                </Button>
               ) : (
-                <Button startIcon={<Block />} color="error" onClick={handleBlockUser}>Block</Button>
+                <Button 
+                  startIcon={<Block />} 
+                  color="error" 
+                  onClick={handleBlockUser}
+                  disabled={!canPerformActions()}
+                >
+                  Block
+                </Button>
               )}
               {user.role !== 'admin' && (
-                <Button startIcon={<Login />} onClick={handleLoginAsUser}>Login as User</Button>
+                <Button 
+                  startIcon={<Login />} 
+                  onClick={handleLoginAsUser}
+                  disabled={!canPerformActions()}
+                >
+                  Login as User
+                </Button>
               )}
             </>
           )}

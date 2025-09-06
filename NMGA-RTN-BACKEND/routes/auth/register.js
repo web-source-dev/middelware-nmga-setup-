@@ -8,6 +8,7 @@ const registerEmail = require('../../utils/EmailTemplates/registerEmail');
 const Announcement = require('../../models/Announcments'); // Add this line to require the Announcement model
 const { sendAuthMessage } = require('../../utils/message');
 const { generateUniqueLoginKey } = require('../../utils/loginKeyGenerator');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Helper function to generate OTP
 const generateOTP = () => {
@@ -67,12 +68,13 @@ router.post('/', async (req, res) => {
 
         await newUser.save();
 
-        const log = new Log({
-            message: `New registration initiated: ${newUser.name} registered as ${newUser.role} in the system. Awaiting email verification.`,
-            type: 'info',
-            user_id: newUser._id
+        // Log the action
+        await logCollaboratorAction(req, 'register', 'user registration', {
+            targetUserName: newUser.name,
+            targetUserEmail: newUser.email,
+            targetUserRole: newUser.role,
+            additionalInfo: 'New registration initiated, awaiting email verification'
         });
-        await log.save();
 
         // Send verification email with OTP
         const emailContent = otpEmailTemplate(newUser.name, otp);
@@ -145,12 +147,11 @@ router.post('/verify-email', async (req, res) => {
         await user.save();
         
         // Log successful verification
-        const log = new Log({
-            message: `Email verification complete: ${user.name} successfully verified their email`,
-            type: 'success',
-            user_id: user._id
+        await logCollaboratorAction(req, 'verify_email', 'email verification', {
+            targetUserName: user.name,
+            targetUserEmail: user.email,
+            additionalInfo: 'Email verification completed successfully'
         });
-        await log.save();
         
         // Send welcome email
         const welcomeEmailContent = registerEmail(user.name);

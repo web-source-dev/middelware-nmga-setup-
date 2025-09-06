@@ -6,6 +6,7 @@ const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const mongoose = require("mongoose");
 const { isAuthenticated, getCurrentUserContext } = require("../../middleware/auth");
+const { logCollaboratorAction } = require("../../utils/collaboratorLogger");
 
 // Configure Cloudinary
 cloudinary.config({
@@ -60,10 +61,16 @@ router.get("/media", isAuthenticated, async (req, res) => {
       
     const count = await Media.countDocuments(query);
     
-    // Log admin impersonation if applicable
-    if (isImpersonating) {
-      console.log(`Admin ${originalUser.name} (${originalUser.email}) fetched media for user ${currentUser.name} (${currentUser.email}) - Found ${count} items`);
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_media_library', 'media', { 
+      totalItems: count,
+      currentPage: page,
+      totalPages: Math.ceil(count / limit),
+      folder: folder,
+      type: type,
+      search: search,
+      additionalInfo: `Viewed media library with ${count} items`
+    });
     
     res.status(200).json({
       media,
@@ -73,6 +80,9 @@ router.get("/media", isAuthenticated, async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching media:", error);
+    await logCollaboratorAction(req, 'view_media_library_failed', 'media', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -89,12 +99,27 @@ router.get("/media/:id", isAuthenticated, async (req, res) => {
     });
     
     if (!media) {
+      await logCollaboratorAction(req, 'view_media_item_failed', 'media', { 
+        mediaId: req.params.id,
+        additionalInfo: 'Media item not found'
+      });
       return res.status(404).json({ message: "Media not found" });
     }
+    
+    await logCollaboratorAction(req, 'view_media_item', 'media', { 
+      mediaId: req.params.id,
+      mediaName: media.name,
+      mediaType: media.type,
+      additionalInfo: `Viewed media item: ${media.name}`
+    });
     
     res.status(200).json(media);
   } catch (error) {
     console.error("Error fetching media item:", error);
+    await logCollaboratorAction(req, 'view_media_item_failed', 'media', { 
+      mediaId: req.params.id,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -106,6 +131,9 @@ router.post("/upload", isAuthenticated, upload.single("file"), async (req, res) 
     const userId = currentUser.id;
     
     if (!req.file) {
+      await logCollaboratorAction(req, 'upload_media_failed', 'media', { 
+        additionalInfo: 'No file uploaded'
+      });
       return res.status(400).json({ message: "No file uploaded" });
     }
     
@@ -142,9 +170,21 @@ router.post("/upload", isAuthenticated, upload.single("file"), async (req, res) 
     
     await media.save();
     
+    await logCollaboratorAction(req, 'upload_media', 'media', { 
+      mediaId: media._id,
+      mediaName: media.name,
+      mediaType: media.type,
+      fileSize: media.size,
+      folderId: media.folderId,
+      additionalInfo: `Uploaded media file: ${media.name} (${media.type})`
+    });
+    
     res.status(201).json(media);
   } catch (error) {
     console.error("Error uploading media:", error);
+    await logCollaboratorAction(req, 'upload_media_failed', 'media', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -158,6 +198,9 @@ router.post("/upload/direct", isAuthenticated, async (req, res) => {
     const { name, url, type, folderId = "root", tags = [], isPinned = false, isPublic = false } = req.body;
     
     if (!url) {
+      await logCollaboratorAction(req, 'upload_media_direct_failed', 'media', { 
+        additionalInfo: 'URL is required for direct upload'
+      });
       return res.status(400).json({ message: "URL is required" });
     }
     
@@ -178,9 +221,20 @@ router.post("/upload/direct", isAuthenticated, async (req, res) => {
     
     await media.save();
     
+    await logCollaboratorAction(req, 'upload_media_direct', 'media', { 
+      mediaId: media._id,
+      mediaName: media.name,
+      mediaType: media.type,
+      folderId: media.folderId,
+      additionalInfo: `Direct uploaded media: ${media.name} (${media.type})`
+    });
+    
     res.status(201).json(media);
   } catch (error) {
     console.error("Error with direct upload:", error);
+    await logCollaboratorAction(req, 'upload_media_direct_failed', 'media', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -198,8 +252,15 @@ router.put("/media/:id", isAuthenticated, async (req, res) => {
     });
     
     if (!media) {
+      await logCollaboratorAction(req, 'update_media_failed', 'media', { 
+        mediaId: req.params.id,
+        additionalInfo: 'Media item not found'
+      });
       return res.status(404).json({ message: "Media not found" });
     }
+    
+    const oldName = media.name;
+    const oldFolderId = media.folderId;
     
     if (name) media.name = name;
     if (folderId) media.folderId = folderId;
@@ -210,9 +271,22 @@ router.put("/media/:id", isAuthenticated, async (req, res) => {
     
     await media.save();
     
+    await logCollaboratorAction(req, 'update_media', 'media', { 
+      mediaId: req.params.id,
+      mediaName: media.name,
+      oldName: oldName,
+      oldFolderId: oldFolderId,
+      newFolderId: media.folderId,
+      additionalInfo: `Updated media item: ${media.name}`
+    });
+    
     res.status(200).json(media);
   } catch (error) {
     console.error("Error updating media:", error);
+    await logCollaboratorAction(req, 'update_media_failed', 'media', { 
+      mediaId: req.params.id,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -229,8 +303,15 @@ router.delete("/media/:id", isAuthenticated, async (req, res) => {
     });
     
     if (!media) {
+      await logCollaboratorAction(req, 'delete_media_failed', 'media', { 
+        mediaId: req.params.id,
+        additionalInfo: 'Media item not found'
+      });
       return res.status(404).json({ message: "Media not found" });
     }
+    
+    const mediaName = media.name;
+    const mediaType = media.type;
     
     // Delete from Cloudinary if we have the publicId
     if (media.metadata && media.metadata.publicId) {
@@ -239,9 +320,20 @@ router.delete("/media/:id", isAuthenticated, async (req, res) => {
     
     await Media.deleteOne({ _id: req.params.id });
     
+    await logCollaboratorAction(req, 'delete_media', 'media', { 
+      mediaId: req.params.id,
+      mediaName: mediaName,
+      mediaType: mediaType,
+      additionalInfo: `Deleted media item: ${mediaName} (${mediaType})`
+    });
+    
     res.status(200).json({ message: "Media deleted successfully" });
   } catch (error) {
     console.error("Error deleting media:", error);
+    await logCollaboratorAction(req, 'delete_media_failed', 'media', { 
+      mediaId: req.params.id,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -262,9 +354,20 @@ router.post("/folders", isAuthenticated, async (req, res) => {
     
     await folder.save();
     
+    await logCollaboratorAction(req, 'create_folder', 'folder', { 
+      folderId: folder._id,
+      folderName: folder.name,
+      parentId: folder.parentId,
+      color: folder.color,
+      additionalInfo: `Created folder: ${folder.name}`
+    });
+    
     res.status(201).json(folder);
   } catch (error) {
     console.error("Error creating folder:", error);
+    await logCollaboratorAction(req, 'create_folder_failed', 'folder', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -288,9 +391,18 @@ router.get("/folders", isAuthenticated, async (req, res) => {
     
     const folders = await Folder.find(query);
     
+    await logCollaboratorAction(req, 'view_folders', 'folders', { 
+      totalFolders: folders.length,
+      parentId: parentId,
+      additionalInfo: `Viewed ${folders.length} folders`
+    });
+    
     res.status(200).json(folders);
   } catch (error) {
     console.error("Error fetching folders:", error);
+    await logCollaboratorAction(req, 'view_folders_failed', 'folders', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -310,8 +422,16 @@ router.put("/folders/:id", isAuthenticated, async (req, res) => {
     });
     
     if (!folder) {
+      await logCollaboratorAction(req, 'update_folder_failed', 'folder', { 
+        folderId: req.params.id,
+        additionalInfo: 'Folder not found'
+      });
       return res.status(404).json({ message: "Folder not found" });
     }
+    
+    const oldName = folder.name;
+    const oldParentId = folder.parentId;
+    const oldColor = folder.color;
     
     if (name) folder.name = name;
     if (parentId) folder.parentId = parentId;
@@ -321,9 +441,24 @@ router.put("/folders/:id", isAuthenticated, async (req, res) => {
     const updatedFolder = await folder.save();
     console.log("Folder updated successfully:", updatedFolder);
     
+    await logCollaboratorAction(req, 'update_folder', 'folder', { 
+      folderId: req.params.id,
+      folderName: updatedFolder.name,
+      oldName: oldName,
+      oldParentId: oldParentId,
+      newParentId: updatedFolder.parentId,
+      oldColor: oldColor,
+      newColor: updatedFolder.color,
+      additionalInfo: `Updated folder: ${updatedFolder.name}`
+    });
+    
     res.status(200).json(updatedFolder);
   } catch (error) {
     console.error("Error updating folder:", error);
+    await logCollaboratorAction(req, 'update_folder_failed', 'folder', { 
+      folderId: req.params.id,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -342,6 +477,10 @@ router.delete("/folders/:id", isAuthenticated, async (req, res) => {
     });
     
     if (!folder) {
+      await logCollaboratorAction(req, 'delete_folder_failed', 'folder', { 
+        folderId: req.params.id,
+        additionalInfo: 'Folder not found'
+      });
       return res.status(404).json({ message: "Folder not found" });
     }
     
@@ -375,6 +514,14 @@ router.delete("/folders/:id", isAuthenticated, async (req, res) => {
     const deleteResult = await Folder.deleteOne({ _id: req.params.id });
     console.log("Delete result:", deleteResult);
     
+    await logCollaboratorAction(req, 'delete_folder', 'folder', { 
+      folderId: req.params.id,
+      folderName: folder.name,
+      subfoldersMoved: subfolders.length,
+      mediaMoved: mediaUpdated.modifiedCount,
+      additionalInfo: `Deleted folder: ${folder.name} (moved ${subfolders.length} subfolders, ${mediaUpdated.modifiedCount} media items)`
+    });
+    
     res.status(200).json({ 
       message: "Folder deleted successfully",
       subfoldersMoved: subfolders.length,
@@ -382,6 +529,10 @@ router.delete("/folders/:id", isAuthenticated, async (req, res) => {
     });
   } catch (error) {
     console.error("Error deleting folder:", error);
+    await logCollaboratorAction(req, 'delete_folder_failed', 'folder', { 
+      folderId: req.params.id,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -401,9 +552,22 @@ router.get("/stats", isAuthenticated, async (req, res) => {
       folders: await Folder.countDocuments({ userId: userId, isArchived: false })
     };
     
+    await logCollaboratorAction(req, 'view_media_stats', 'media', { 
+      totalMedia: stats.total,
+      images: stats.images,
+      videos: stats.videos,
+      documents: stats.documents,
+      others: stats.others,
+      folders: stats.folders,
+      additionalInfo: `Viewed media statistics: ${stats.total} total items, ${stats.folders} folders`
+    });
+    
     res.status(200).json(stats);
   } catch (error) {
     console.error("Error fetching media stats:", error);
+    await logCollaboratorAction(req, 'view_media_stats_failed', 'media', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });

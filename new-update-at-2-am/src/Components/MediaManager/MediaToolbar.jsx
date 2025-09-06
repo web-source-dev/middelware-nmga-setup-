@@ -30,6 +30,7 @@ import ImageIcon from "@mui/icons-material/Image";
 import VideoLibraryIcon from "@mui/icons-material/VideoLibrary";
 import FolderIcon from "@mui/icons-material/Folder";
 import DescriptionIcon from "@mui/icons-material/Description";
+import { useAuth } from "../../middleware/auth";
 
 const MediaToolbar = ({
   onSearch,
@@ -49,6 +50,36 @@ const MediaToolbar = ({
 }) => {
   const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+
+  // Get user info from middleware
+  const { 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager, 
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (create folders)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
 
   const handleCreateFolder = () => {
     if (newFolderName.trim()) {
@@ -203,6 +234,7 @@ const MediaToolbar = ({
           variant="outlined"
           startIcon={<CreateNewFolderIcon color="primary.contrastText" />}
           onClick={() => setNewFolderDialogOpen(true)}
+          disabled={!canPerformActions()}
           size="small"
           color="primary.contrastText"
           sx={{ 
@@ -218,6 +250,7 @@ const MediaToolbar = ({
         <Tooltip title="New Folder">
           <IconButton
             onClick={() => setNewFolderDialogOpen(true)}
+            disabled={!canPerformActions()}
             sx={{ 
               display: { xs: 'inline-flex', sm: 'none' } 
             }}

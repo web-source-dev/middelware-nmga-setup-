@@ -5,6 +5,7 @@ const Commitment = require('../../models/Commitments');
 const User = require('../../models/User');
 const Deal = require('../../models/Deals');
 const { createNotification } = require('../Common/Notification');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Helper function to check if user has access to the chat
 const hasAccessToChat = async (userId, commitment) => {
@@ -73,6 +74,12 @@ router.get('/:commitmentId', async (req, res) => {
       .populate('senderId', 'name role')
       .sort({ createdAt: 1 });
     
+    // Log the action
+    await logCollaboratorAction(req, 'view_chat_messages', 'chat messages', {
+      commitmentId: commitmentId,
+      additionalInfo: `Found ${messages.length} messages`
+    });
+    
     res.json(messages);
   } catch (error) {
     console.error('Error fetching chat messages:', error);
@@ -131,6 +138,13 @@ router.post('/:commitmentId', async (req, res) => {
 
     // Populate sender info before sending response
     await chatMessage.populate('senderId', 'name role');
+
+    // Log the action
+    await logCollaboratorAction(req, 'send_chat_message', 'chat message', {
+      commitmentId: commitmentId,
+      messageLength: message.length,
+      additionalInfo: `Message sent in chat for deal "${commitment.dealId.name}"`
+    });
 
     // Determine recipient based on sender's role
     const sender = await User.findById(senderId);
@@ -256,6 +270,12 @@ router.put('/:commitmentId/read', async (req, res) => {
         });
       }
     }
+
+    // Log the action
+    await logCollaboratorAction(req, 'mark_messages_read', 'chat messages', {
+      commitmentId: commitmentId,
+      additionalInfo: `Marked ${unreadMessages.length} messages as read`
+    });
 
     res.json({ message: 'Messages marked as read' });
   } catch (error) {

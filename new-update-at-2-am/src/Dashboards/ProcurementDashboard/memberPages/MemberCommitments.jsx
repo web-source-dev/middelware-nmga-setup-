@@ -58,7 +58,32 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 const MemberCommitments = () => {
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin,
+    isCollaboratorManager,
+    isCommitmentManager 
+  } = useAuth();
+
+  // Check if user can perform actions (modify, cancel commitments)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Commitment manager
+    if (isCommitmentManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   const [commitments, setCommitments] = useState([]);
   const [filteredCommitments, setFilteredCommitments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -485,7 +510,12 @@ const MemberCommitments = () => {
       </Paper>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, mr: 2 }}>
-      <Button variant="outlined" color="primary.contrastText" onClick={handleClick}>
+      <Button 
+        variant="outlined" 
+        color="primary.contrastText" 
+        onClick={handleClick}
+        disabled={!canPerformActions()}
+      >
         Download
       </Button>
       <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
@@ -651,6 +681,7 @@ const MemberCommitments = () => {
                                   setModifiedSizeCommitments([...commitment.sizeCommitments]);
                                   setModifyDialogOpen(true);
                                 }}
+                                disabled={!canPerformActions()}
                                 startIcon={<EditIcon color="primary.contrastText" />}
                               >
                                 Modify
@@ -663,6 +694,7 @@ const MemberCommitments = () => {
                                   setSelectedCommitment(commitment);
                                   setCancelDialogOpen(true);
                                 }}
+                                disabled={!canPerformActions()}
                                 startIcon={<CancelIcon color="error" />}
                               >
                                 Cancel
@@ -792,6 +824,7 @@ const MemberCommitments = () => {
                         color="primary" 
                         startIcon={<RestartAltIcon />}
                         onClick={showAllCommitments}
+                        disabled={!canPerformActions()}
                       >
                         Show All Commitments
                       </Button>
@@ -826,7 +859,12 @@ const MemberCommitments = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCancelDialogOpen(false)}>No, Keep It</Button>
-          <Button onClick={handleCancelCommitment} color="error" variant="contained">
+          <Button 
+            onClick={handleCancelCommitment} 
+            color="error" 
+            variant="contained"
+            disabled={!canPerformActions()}
+          >
             Yes, Cancel It
           </Button>
         </DialogActions>
@@ -904,8 +942,12 @@ const MemberCommitments = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModifyDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleModifyCommitment} color="primary" variant="contained" 
-            disabled={calculateTotalQuantity(modifiedSizeCommitments) === 0}>
+          <Button 
+            onClick={handleModifyCommitment} 
+            color="primary" 
+            variant="contained" 
+            disabled={calculateTotalQuantity(modifiedSizeCommitments) === 0 || !canPerformActions()}
+          >
             Update Commitment
           </Button>
         </DialogActions>

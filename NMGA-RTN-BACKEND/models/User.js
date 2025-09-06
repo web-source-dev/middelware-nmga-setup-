@@ -91,7 +91,28 @@ const userSchema = new mongoose.Schema({
   addedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
-  }
+  },
+  collaborators: [{
+    name: String,
+    email: String,
+    role: { 
+      type: String, 
+      enum: [
+        'manager',            // full control of the account 
+        'deal_manager',     // create/update/accept/decline deals commitments and also handle assets/media 
+        'supplier_manager', // add & manage suppliers
+        'media_manager',    // handle assets/media
+        'commitment_manager', // manage commitments (esp. for co-op accounts)
+        'substore_manager', // manage sub-stores (co-op only)
+        'viewer'            // default read-only access
+      ], 
+      default: 'viewer' 
+    },
+    password: String,
+    status: { type: String, enum: ['active', 'restricted', 'deleted','invited','accepted'], default: 'invited' },
+    invitationToken: String,
+    invitationExpiry: Date
+  }],
 }, {
   timestamps: true
 });

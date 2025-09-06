@@ -5,6 +5,7 @@ const Deal = require('../../models/Deals');
 const Log = require('../../models/Logs');
 const Supplier = require('../../models/Suppliers');
 const { isAuthenticated, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.get('/deal/:dealId', isAuthenticated, async (req, res) => {
   try {
@@ -33,10 +34,15 @@ router.get('/deal/:dealId', isAuthenticated, async (req, res) => {
     const avgOriginalCost = deal.sizes.reduce((sum, size) => sum + Number(size.originalCost), 0) / deal.sizes.length;
     const avgDiscountPrice = deal.sizes.reduce((sum, size) => sum + Number(size.discountPrice), 0) / deal.sizes.length;
     
-    await Log.create({
-      message: `Deal "${deal.name}" viewed - Views: ${deal.views}, Impressions: ${deal.impressions}, Avg Original: $${avgOriginalCost.toFixed(2)}, Avg Discount: $${avgDiscountPrice.toFixed(2)}, Sizes: ${deal.sizes.length}`,
-      type: 'info',
-      user_id: deal.distributor ? deal.distributor._id : null
+    await logCollaboratorAction(req, 'view_single_deal', 'deal', { 
+      dealName: deal.name,
+      dealId: dealId,
+      views: deal.views,
+      impressions: deal.impressions,
+      avgOriginalCost: avgOriginalCost.toFixed(2),
+      avgDiscountPrice: avgDiscountPrice.toFixed(2),
+      sizesCount: deal.sizes.length,
+      additionalInfo: `Deal viewed with analytics data`
     });
 
     // Calculate average savings information
@@ -110,6 +116,10 @@ router.get('/deal/:dealId', isAuthenticated, async (req, res) => {
     res.status(200).json(response);
   } catch (err) {
     console.error(err);
+    await logCollaboratorAction(req, 'view_single_deal_failed', 'deal', { 
+      dealId: req.params.dealId,
+      additionalInfo: `Error: ${err.message}`
+    });
     res.status(500).json({ message: 'Server error' });
   }
 });

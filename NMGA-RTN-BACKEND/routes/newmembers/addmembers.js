@@ -10,6 +10,7 @@ const invitationEmail = require('../../utils/EmailTemplates/InvitationEmail');
 const jwt = require('jsonwebtoken');
 const { isMemberAdmin, getCurrentUserContext } = require('../../middleware/auth');
 const { generateUniqueLoginKey } = require('../../utils/loginKeyGenerator');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Route to add a new member - accessible by member or admin impersonating member
 router.post('/add', isMemberAdmin, async (req, res) => {
@@ -61,7 +62,9 @@ router.post('/add', isMemberAdmin, async (req, res) => {
       resetPasswordToken: token,
       resetPasswordExpires,
       addedBy: parentUserId,
-      login_key: loginKey
+      login_key: loginKey,
+      teamOwner: null, // Set as main owner since they are added directly
+      teamRole: 'member_owner'
     });
     newUser.login_key = loginKey;
 
@@ -78,20 +81,14 @@ router.post('/add', isMemberAdmin, async (req, res) => {
     await sendEmail(newUser.email, 'Welcome to NMGA - Complete Your Registration', emailContent);
     
     // Log the action
-    let logMessage;
-    if (isImpersonating) {
-      // Admin is impersonating a member and adding a new member
-      logMessage = `Admin ${originalUser.name} (${originalUser.email}) added new member "${name}" (${email}) on behalf of member ${currentUser.name} (${currentUser.email})`;
-    } else {
-      // Member is adding a new member themselves
-      logMessage = `Member ${currentUser.name} (${currentUser.email}) added new member "${name}" (${email})`;
-    }
-    
-    // Create log entry - user_id should always be the member being acted upon (currentUser.id)
-    await Log.create({
-      message: logMessage,
-      type: 'success',
-      user_id: currentUser.id // Always the member's ID, whether admin is impersonating or not
+    await logCollaboratorAction(req, 'add_new_member', 'member', { 
+      newMemberId: newUser._id,
+      newMemberName: name,
+      newMemberEmail: email,
+      businessName: businessName,
+      contactPerson: contactPerson,
+      phone: phone,
+      additionalInfo: `Added new member: ${name} (${email})`
     });
     
     res.status(201).json({
@@ -104,23 +101,9 @@ router.post('/add', isMemberAdmin, async (req, res) => {
     console.error('Error adding member:', error);
     
     // Log the error
-    const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-    let errorLogMessage;
-    if (isImpersonating) {
-      errorLogMessage = `Admin ${originalUser.name} failed to add new member on behalf of member ${currentUser.name}: ${error.message}`;
-    } else {
-      errorLogMessage = `Member ${currentUser.name} failed to add new member: ${error.message}`;
-    }
-    
-    try {
-      await Log.create({
-        message: errorLogMessage,
-        type: 'error',
-        user_id: currentUser.id
-      });
-    } catch (logError) {
-      console.error('Failed to create error log:', logError);
-    }
+    await logCollaboratorAction(req, 'add_new_member_failed', 'member', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     
     res.status(500).json({ 
       success: false, 
@@ -144,6 +127,11 @@ router.get('/members', isMemberAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
+    await logCollaboratorAction(req, 'view_added_members', 'members', { 
+      totalMembers: parentUser.addedMembers.length,
+      additionalInfo: `Viewed ${parentUser.addedMembers.length} added members`
+    });
+    
     res.status(200).json({
       success: true,
       members: parentUser.addedMembers
@@ -151,6 +139,9 @@ router.get('/members', isMemberAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('Error fetching added members:', error);
+    await logCollaboratorAction(req, 'view_added_members_failed', 'members', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch members', 
@@ -243,11 +234,17 @@ router.get('/member-details/:memberId', isMemberAdmin, async (req, res) => {
       }
     };
     
+    await logCollaboratorAction(req, 'view_member_details', 'member');
+    
     console.log('Sending response with member:', response.member.name);
     res.status(200).json(response);
     
   } catch (error) {
     console.error('Error fetching member details:', error);
+    await logCollaboratorAction(req, 'view_member_details_failed', 'member', { 
+      memberId: req.params.memberId,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch member details', 

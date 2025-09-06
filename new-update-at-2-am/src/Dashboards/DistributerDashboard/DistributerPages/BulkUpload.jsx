@@ -9,10 +9,13 @@ import {
     Alert,
     CircularProgress,
     Skeleton,
-    Chip
+    Chip,
+    Card,
+    CardContent
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
+import LockIcon from '@mui/icons-material/Lock';
 
 const BulkUploadSkeleton = () => (
     <Box sx={{ width: '100%', p: 3 }}>
@@ -32,11 +35,56 @@ const BulkUploadSkeleton = () => (
 );
 
 const BulkUpload = () => {
-    const { currentUserId, isImpersonating } = useAuth();
+    const { 
+        currentUserId, 
+        isImpersonating, 
+        isCollaborator, 
+        isAdmin, 
+        isCollaboratorManager, 
+        isDealManager 
+    } = useAuth();
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '', details: [] });
+
+    // Check if user can access bulk upload functionality
+    const canAccessBulkUpload = () => {
+        // Main account owner (not a collaborator)
+        if (!isCollaborator) return true;
+        
+        // Admin (with or without impersonating)
+        if (isAdmin) return true;
+        
+        // Collaborator manager
+        if (isCollaboratorManager) return true;
+        
+        // Deal manager
+        if (isDealManager) return true;
+        
+        // All other collaborators cannot access bulk upload
+        return false;
+    };
+
+    // Access Denied Component
+    const AccessDeniedMessage = () => (
+        <Box sx={{ p: 3 }}>
+            <Card sx={{ maxWidth: 500, mx: 'auto', mt: 2 }}>
+                <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                    <LockIcon sx={{ fontSize: 48, color: 'error.main', mb: 2 }} />
+                    <Typography variant="h6" gutterBottom>
+                        Access Denied
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                        You don't have the required permissions to access bulk upload functionality.
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        Required roles: Manager, Deal Manager, or Admin
+                    </Typography>
+                </CardContent>
+            </Card>
+        </Box>
+    );
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
@@ -108,6 +156,11 @@ const BulkUpload = () => {
 
     if (loading) {
         return <BulkUploadSkeleton />;
+    }
+
+    // Show access denied message for unauthorized users
+    if (!canAccessBulkUpload()) {
+        return <AccessDeniedMessage />;
     }
 
     return (

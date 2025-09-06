@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
 const { createNotification } = require('../Common/Notification');
 const { isAuthenticated, isAdmin, isDistributorAdmin, isMemberAdmin, getCurrentUserContext } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 const register = require('./register');
 router.use('/register', register);
@@ -45,6 +46,9 @@ router.get('/profile', isAuthenticated, async (req, res) => {
     const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
     const userId = currentUser.id;
     
+    // Log the action
+    await logCollaboratorAction(req, 'view_profile', 'user profile');
+    
     const user = await User.findById(userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -66,6 +70,9 @@ router.get('/member/profile', isMemberAdmin, async (req, res) => {
     const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
     const userId = currentUser.id;
     
+    // Log the action
+    await logCollaboratorAction(req, 'view_member_profile', 'member profile');
+    
     const user = await User.findById(userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -86,6 +93,9 @@ router.get('/distributor/profile', isDistributorAdmin, async (req, res) => {
   try {
     const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
     const userId = currentUser.id;
+    
+    // Log the action
+    await logCollaboratorAction(req, 'view_distributor_profile', 'distributor profile');
     
     const user = await User.findById(userId).select('-password');
     if (!user) {
@@ -167,6 +177,13 @@ router.post('/create-password', async (req, res) => {
     user.isVerified = true; // Mark as verified
     
     await user.save();
+    
+    // Log the action
+    await logCollaboratorAction(req, 'setup_password', 'user account', {
+      targetUserName: user.name,
+      targetUserEmail: user.email,
+      additionalInfo: 'Password created for newly added member'
+    });
     
     // Send notification to parent user
     if (user.addedBy) {

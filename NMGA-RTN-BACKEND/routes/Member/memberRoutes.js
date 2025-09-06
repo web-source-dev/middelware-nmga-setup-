@@ -8,6 +8,7 @@ const Favorite = require('../../models/Favorite');
 const bcrypt = require('bcryptjs');
 const Log = require('../../models/Logs');
 const { isMemberAdmin, getCurrentUserContext,isAuthenticated } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get member stats
 router.get('/stats', isMemberAdmin, async (req, res) => {
@@ -68,14 +69,18 @@ router.get('/stats', isMemberAdmin, async (req, res) => {
     // Get total number of favorites
     const totalFavorites = await Favorite.countDocuments({ userId });
 
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed stats for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_member_stats', 'member', { 
+      totalCommitments: totalCommitments,
+      activeCommitments: activeCommitments,
+      totalSpent: totalSpent,
+      favoriteDeals: favoriteDeals,
+      totalApproved: totalApproved,
+      totalDeclined: totalDeclined,
+      totalCancelled: totalCancelled,
+      totalFavorites: totalFavorites,
+      additionalInfo: `Viewed member statistics: ${totalCommitments} commitments, $${totalSpent.toFixed(2)} spent`
+    });
 
     res.json({
       totalCommitments,
@@ -90,6 +95,9 @@ router.get('/stats', isMemberAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching member stats:', error);
+    await logCollaboratorAction(req, 'view_member_stats_failed', 'member', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error fetching member stats' });
   }
 });
@@ -105,18 +113,18 @@ router.get('/commitments', isMemberAdmin, async (req, res) => {
       .populate('dealId', 'name category')
       .populate('userId', 'name');
     
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed commitments for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_member_commitments', 'commitments', { 
+      totalCommitments: commitments.length,
+      additionalInfo: `Viewed ${commitments.length} member commitments`
+    });
     
     res.json(commitments);
   } catch (error) {
     console.error('Error fetching commitments:', error);
+    await logCollaboratorAction(req, 'view_member_commitments_failed', 'commitments', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error fetching commitments' });
   }
 });
@@ -136,18 +144,18 @@ router.get('/favorites', isMemberAdmin, async (req, res) => {
         }
       });
     
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed favorites for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_member_favorites', 'favorites', { 
+      totalFavorites: favorites.length,
+      additionalInfo: `Viewed ${favorites.length} member favorites`
+    });
     
     res.json(favorites);
   } catch (error) {
     console.error('Error fetching favorites:', error);
+    await logCollaboratorAction(req, 'view_member_favorites_failed', 'favorites', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error fetching favorites' });
   }
 });
@@ -163,18 +171,19 @@ router.delete('/favorites/:dealId', isMemberAdmin, async (req, res) => {
       dealId: req.params.dealId
     });
     
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) removed favorite deal ${req.params.dealId} for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'remove_favorite', 'favorite', { 
+      dealId: req.params.dealId,
+      additionalInfo: `Removed favorite deal: ${req.params.dealId}`
+    });
     
     res.json({ message: 'Favorite removed successfully' });
   } catch (error) {
     console.error('Error removing favorite:', error);
+    await logCollaboratorAction(req, 'remove_favorite_failed', 'favorite', { 
+      dealId: req.params.dealId,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error removing favorite' });
   }
 });
@@ -199,19 +208,18 @@ router.post('/commitments/:commitmentId/cancel', isMemberAdmin, async (req, res)
     await commitment.save();
 
     // Log the action
-    const logMessage = isImpersonating 
-      ? `Admin ${originalUser.name} (${originalUser.email}) cancelled commitment ${commitment._id} for user ${currentUser.name} (${currentUser.email})`
-      : `Commitment ${commitment._id} cancelled by user ${currentUser.name} (${currentUser.email})`;
-    
-    await Log.create({
-      message: logMessage,
-      type: 'info',
-      user_id: userId
+    await logCollaboratorAction(req, 'cancel_commitment', 'commitment', { 
+      commitmentId: commitment._id,
+      additionalInfo: `Cancelled commitment: ${commitment._id}`
     });
     
     res.json({ message: 'Commitment cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling commitment:', error);
+    await logCollaboratorAction(req, 'cancel_commitment_failed', 'commitment', { 
+      commitmentId: req.params.commitmentId,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error cancelling commitment' });
   }
 });
@@ -301,14 +309,14 @@ router.get('/analytics', isMemberAdmin, async (req, res) => {
       };
     }).reverse();
 
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed analytics for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_member_analytics', 'analytics', { 
+      spendingTrends: spendingTrends.length,
+      categoryDistribution: categoryDistribution.length,
+      commitmentStatus: commitmentStatus.length,
+      monthlyActivity: monthlyActivity.length,
+      additionalInfo: `Viewed member analytics with ${spendingTrends.length} spending trends`
+    });
 
     res.json({
       spendingTrends,
@@ -318,6 +326,9 @@ router.get('/analytics', isMemberAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
+    await logCollaboratorAction(req, 'view_member_analytics_failed', 'analytics', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error fetching analytics' });
   }
 });
@@ -333,18 +344,20 @@ router.get('/user', isAuthenticated, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed profile for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_user_profile', 'profile', { 
+      userId: userId,
+      userName: user.name,
+      userEmail: user.email,
+      additionalInfo: `Viewed user profile: ${user.name}`
+    });
     
     res.json(user);
   } catch (error) {
     console.error('Error fetching user data:', error);
+    await logCollaboratorAction(req, 'view_user_profile_failed', 'profile', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error fetching user data' });
   }
 });
@@ -366,18 +379,21 @@ router.put('/user', isAuthenticated, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) updated profile for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'update_user_profile', 'profile', { 
+      userId: userId,
+      userName: updatedUser.name,
+      userEmail: updatedUser.email,
+      updatedFields: Object.keys(updates),
+      additionalInfo: `Updated user profile: ${updatedUser.name}`
+    });
 
     res.json({ message: 'User updated successfully', user: updatedUser });
   } catch (error) {
     console.error('Error updating user data:', error);
+    await logCollaboratorAction(req, 'update_user_profile_failed', 'profile', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error updating user data' });
   }
 });
@@ -409,18 +425,20 @@ router.post('/user/password', isAuthenticated, async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) changed password for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'change_password', 'password', { 
+      userId: userId,
+      userName: user.name,
+      userEmail: user.email,
+      additionalInfo: `Changed password for user: ${user.name}`
+    });
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
     console.error('Error updating password:', error);
+    await logCollaboratorAction(req, 'change_password_failed', 'password', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error updating password' });
   }
 });
@@ -442,18 +460,20 @@ router.post('/user/avatar', isAuthenticated, async (req, res) => {
           return res.status(404).json({ message: 'User not found' });
       }
 
-      // Log admin action if impersonating
-      if (isImpersonating) {
-        await Log.create({
-          message: `Admin ${originalUser.name} (${originalUser.email}) updated avatar for user ${currentUser.name} (${currentUser.email})`,
-          type: 'info',
-          user_id: userId
-        });
-      }
+      // Log the action
+      await logCollaboratorAction(req, 'update_user_avatar', 'avatar', { 
+        userId: userId,
+        userName: updatedUser.name,
+        userEmail: updatedUser.email,
+        additionalInfo: `Updated avatar for user: ${updatedUser.name}`
+      });
 
       res.json({ message: 'Avatar updated successfully', user: updatedUser });
   } catch (error) {
       console.error('Error updating avatar:', error);
+      await logCollaboratorAction(req, 'update_user_avatar_failed', 'avatar', { 
+        additionalInfo: `Error: ${error.message}`
+      });
       res.status(500).json({ message: 'Error updating avatar' });
   }
 });
@@ -925,14 +945,17 @@ router.get('/detailed-analytics', isMemberAdmin, async (req, res) => {
       }
     ]);
 
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) viewed detailed analytics for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'view_detailed_analytics', 'analytics', { 
+      timeRange: timeRange,
+      startDate: startDate,
+      endDate: endDate,
+      categories: categories,
+      minAmount: minAmount,
+      maxAmount: maxAmount,
+      searchTerm: searchTerm,
+      additionalInfo: `Viewed detailed analytics with time range: ${timeRange}`
+    });
 
     res.json({
       yearlySpending: spendingTrends,
@@ -948,6 +971,9 @@ router.get('/detailed-analytics', isMemberAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching detailed analytics:', error);
+    await logCollaboratorAction(req, 'view_detailed_analytics_failed', 'analytics', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error fetching detailed analytics' });
   }
 });
@@ -1116,14 +1142,13 @@ router.put('/commitments/:commitmentId/modify-sizes', isMemberAdmin, async (req,
     await commitment.save();
 
     // Log the action
-    const logMessage = isImpersonating 
-      ? `Admin ${originalUser.name} (${originalUser.email}) modified commitment ${commitment._id} for user ${currentUser.name} (${currentUser.email}) - Sizes: ${sizeCommitments.length}, Total: ${totalQuantity} units, $${finalPrice.toFixed(2)}`
-      : `Commitment ${commitment._id} modified by user ${currentUser.name} (${currentUser.email}) - Sizes: ${sizeCommitments.length}, Total: ${totalQuantity} units, $${finalPrice.toFixed(2)}`;
-    
-    await Log.create({
-      message: logMessage,
-      type: 'info',
-      user_id: userId
+    await logCollaboratorAction(req, 'modify_commitment_sizes', 'commitment', { 
+      commitmentId: commitment._id,
+      sizesCount: sizeCommitments.length,
+      totalQuantity: totalQuantity,
+      finalPrice: finalPrice,
+      appliedDiscountTier: appliedDiscountTier,
+      additionalInfo: `Modified commitment sizes: ${sizeCommitments.length} sizes, ${totalQuantity} units, $${finalPrice.toFixed(2)}`
     });
 
     res.json({
@@ -1132,6 +1157,10 @@ router.put('/commitments/:commitmentId/modify-sizes', isMemberAdmin, async (req,
     });
   } catch (error) {
     console.error('Error modifying commitment:', error);
+    await logCollaboratorAction(req, 'modify_commitment_sizes_failed', 'commitment', { 
+      commitmentId: req.params.commitmentId,
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error modifying commitment' });
   }
 });
@@ -1167,14 +1196,17 @@ router.get('/dashboard-access', isMemberAdmin, async (req, res) => {
     // Get favorite deals count
     const favoriteDeals = await Favorite.countDocuments({ userId });
     
-    // Log admin action if impersonating
-    if (isImpersonating) {
-      await Log.create({
-        message: `Admin ${originalUser.name} (${originalUser.email}) accessed member dashboard for user ${currentUser.name} (${currentUser.email})`,
-        type: 'info',
-        user_id: userId
-      });
-    }
+    // Log the action
+    await logCollaboratorAction(req, 'access_member_dashboard', 'dashboard', { 
+      userId: userId,
+      userName: user.name,
+      userEmail: user.email,
+      totalCommitments: totalCommitments,
+      activeCommitments: activeCommitments,
+      totalSpent: totalSpent,
+      favoriteDeals: favoriteDeals,
+      additionalInfo: `Accessed member dashboard: ${user.name}`
+    });
     
     res.json({
       user,
@@ -1188,6 +1220,9 @@ router.get('/dashboard-access', isMemberAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching member dashboard access:', error);
+    await logCollaboratorAction(req, 'access_member_dashboard_failed', 'dashboard', { 
+      additionalInfo: `Error: ${error.message}`
+    });
     res.status(500).json({ message: 'Error fetching member dashboard access' });
   }
 });

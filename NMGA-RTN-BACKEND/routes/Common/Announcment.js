@@ -3,6 +3,7 @@ const router = express.Router();
 const Log = require('../../models/Logs');
 const Announcement = require('../../models/Announcments');
 const { isAdmin } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.get('/latest', async (req, res) => {
     try {
@@ -48,6 +49,9 @@ router.get('/event/:event', async (req, res) => {
 
 router.get('/all', async (req, res) => {
     try {
+        // Log the action
+        await logCollaboratorAction(req, 'view_announcements', 'announcements list');
+        
         const announcements = await Announcement.find().sort({ createdAt: -1 });
         res.json(announcements);
     } catch (error) {
@@ -78,12 +82,15 @@ router.post('/create',isAdmin, async (req, res) => {
             endTime
         });
         await newAnnouncement.save();
-        res.status(201).json({ message: 'Announcement created successfully', announcement: newAnnouncement });
-        await Log.create({ 
-            message: `Announcement "${title}" created by ${author.name}`, 
-            type: 'success', 
-            user_id: req.body.author 
+        
+        // Log the action with user-friendly message
+        await logCollaboratorAction(req, 'create_announcement', 'announcement', {
+            title,
+            category,
+            event
         });
+        
+        res.status(201).json({ message: 'Announcement created successfully', announcement: newAnnouncement });
     } catch (error) {
         if (!res.headersSent) {
             await Log.create({
@@ -104,12 +111,13 @@ router.patch('/:id',isAdmin, async (req, res) => {
         if (!announcement) {
             return res.status(404).json({ message: 'Announcement not found' });
         }
-        res.json({ message: 'Announcement updated successfully', announcement });
-        await Log.create({ 
-            message: `Announcement "${announcement.title}" ${isActive ? 'activated' : 'deactivated'}`, 
-            type: 'info', 
-            user_id: null 
+        
+        // Log the action with user-friendly message
+        await logCollaboratorAction(req, isActive ? 'activate_announcement' : 'deactivate_announcement', 'announcement', {
+            title: announcement.title
         });
+        
+        res.json({ message: 'Announcement updated successfully', announcement });
     } catch (error) {
         if (!res.headersSent) {
             await Log.create({
@@ -141,12 +149,15 @@ router.put('/:id',isAdmin, async (req, res) => {
         if (!announcement) {
             return res.status(404).json({ message: 'Announcement not found' });
         }
-        res.json({ message: 'Announcement updated successfully', announcement });
-        await Log.create({ 
-            message: `Announcement "${announcement.title}" updated with new content`, 
-            type: 'info', 
-            user_id: null 
+        
+        // Log the action with user-friendly message
+        await logCollaboratorAction(req, 'update_announcement', 'announcement', {
+            title: announcement.title,
+            category,
+            event
         });
+        
+        res.json({ message: 'Announcement updated successfully', announcement });
     } catch (error) {
         if (!res.headersSent) {
             await Log.create({
@@ -166,12 +177,13 @@ router.delete('/:id',isAdmin, async (req, res) => {
         if (!announcement) {
             return res.status(404).json({ message: 'Announcement not found' });
         }
-        res.json({ message: 'Announcement deleted successfully' });
-        await Log.create({ 
-            message: `Announcement "${announcement.title}" permanently deleted`, 
-            type: 'info', 
-            user_id: null 
+        
+        // Log the action with user-friendly message
+        await logCollaboratorAction(req, 'delete_announcement', 'announcement', {
+            title: announcement.title
         });
+        
+        res.json({ message: 'Announcement deleted successfully' });
     } catch (error) {
         if (!res.headersSent) {
             await Log.create({

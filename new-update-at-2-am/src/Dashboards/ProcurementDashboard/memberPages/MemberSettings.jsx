@@ -71,7 +71,28 @@ const SettingsSkeleton = () => (
 );
 
 const MemberSettings = () => {
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin,
+    isCollaboratorManager 
+  } = useAuth();
+
+  // Check if user can perform actions (edit profile, change password)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   const [loading, setLoading] = useState(true);
   const [initialValues, setInitialValues] = useState({
     name: '',
@@ -326,6 +347,7 @@ const MemberSettings = () => {
                   <IconButton
                     color="primary.contrastText"
                     component="span"
+                    disabled={!canPerformActions()}
                   >
                     <PhotoCamera color='primary.contrastText'/>
                   </IconButton>
@@ -346,6 +368,7 @@ const MemberSettings = () => {
                         onChange={formik.handleChange}
                         error={formik.touched.name && Boolean(formik.errors.name)}
                         helperText={formik.touched.name && formik.errors.name}
+                        disabled={!canPerformActions()}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -370,6 +393,7 @@ const MemberSettings = () => {
                         onChange={formik.handleChange}
                         error={formik.touched.phone && Boolean(formik.errors.phone)}
                         helperText={formik.touched.phone && formik.errors.phone}
+                        disabled={!canPerformActions()}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -382,6 +406,7 @@ const MemberSettings = () => {
                         onChange={formik.handleChange}
                         error={formik.touched.address && Boolean(formik.errors.address)}
                         helperText={formik.touched.address && formik.errors.address}
+                        disabled={!canPerformActions()}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -394,6 +419,7 @@ const MemberSettings = () => {
                         onChange={formik.handleChange}
                         error={formik.touched.businessName && Boolean(formik.errors.businessName)}
                         helperText={formik.touched.businessName && formik.errors.businessName}
+                        disabled={!canPerformActions()}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -406,6 +432,7 @@ const MemberSettings = () => {
                         onChange={formik.handleChange}
                         error={formik.touched.contactPerson && Boolean(formik.errors.contactPerson)}
                         helperText={formik.touched.contactPerson && formik.errors.contactPerson}
+                        disabled={!canPerformActions()}
                       />
                     </Grid>
                     
@@ -424,6 +451,7 @@ const MemberSettings = () => {
                             onChange={formik.handleChange}
                             error={formik.touched.additionalEmails?.[index]?.email && Boolean(formik.errors.additionalEmails?.[index]?.email)}
                             helperText={formik.touched.additionalEmails?.[index]?.email && formik.errors.additionalEmails?.[index]?.email}
+                            disabled={!canPerformActions()}
                           />
                           <TextField
                             fullWidth
@@ -431,15 +459,20 @@ const MemberSettings = () => {
                             label="Label"
                             value={emailItem.label}
                             onChange={formik.handleChange}
+                            disabled={!canPerformActions()}
                           />
-                          <IconButton onClick={() => handleRemoveEmail(index)}sx={{
-                            fontSize: '1.5rem',
-                            borderRadius:'50%',
-                            width:'54px',
-                            height:'54px',
-                            backgroundColor:'rgb(239, 68, 68)',
-                            color:'white'
-                          }}>
+                          <IconButton 
+                            onClick={() => handleRemoveEmail(index)}
+                            disabled={!canPerformActions()}
+                            sx={{
+                              fontSize: '1.5rem',
+                              borderRadius:'50%',
+                              width:'54px',
+                              height:'54px',
+                              backgroundColor:'rgb(239, 68, 68)',
+                              color:'white'
+                            }}
+                          >
                            X
                           </IconButton>
                         </Box>
@@ -448,6 +481,7 @@ const MemberSettings = () => {
                         variant="outlined"
                         color='primary.contrastText'
                         onClick={handleAddEmail}
+                        disabled={!canPerformActions()}
                       >
                         Add Email
                       </Button>
@@ -466,6 +500,7 @@ const MemberSettings = () => {
                             label="Phone Number"
                             value={phoneItem.number}
                             onChange={formik.handleChange}
+                            disabled={!canPerformActions()}
                           />
                           <TextField
                             fullWidth
@@ -473,15 +508,20 @@ const MemberSettings = () => {
                             label="Label"
                             value={phoneItem.label}
                             onChange={formik.handleChange}
+                            disabled={!canPerformActions()}
                           />
-                          <IconButton onClick={() => handleRemovePhone(index)} sx={{
-                            fontSize: '1.5rem',
-                            borderRadius:'50%',
-                            width:'54px',
-                            height:'54px',
-                            backgroundColor:'rgb(239, 68, 68)',
-                            color:'white'
-                          }}>
+                          <IconButton 
+                            onClick={() => handleRemovePhone(index)}
+                            disabled={!canPerformActions()}
+                            sx={{
+                              fontSize: '1.5rem',
+                              borderRadius:'50%',
+                              width:'54px',
+                              height:'54px',
+                              backgroundColor:'rgb(239, 68, 68)',
+                              color:'white'
+                            }}
+                          >
                             X
                           </IconButton>
                         </Box>
@@ -490,19 +530,26 @@ const MemberSettings = () => {
                         variant="outlined"
                         onClick={handleAddPhone}
                         color='primary.contrastText'
+                        disabled={!canPerformActions()}
                         sx={{ mb: 2 }}
                       >
                         Add Phone Number
                       </Button>
                     </Grid>
                     <Grid item xs={12} sx={{ borderTop: 1, borderColor: 'primary.main' }}> 
-                      <StyledButton color="primary" variant="contained" type="submit">
+                      <StyledButton 
+                        color="primary" 
+                        variant="contained" 
+                        type="submit"
+                        disabled={!canPerformActions()}
+                      >
                         Update Profile
                       </StyledButton>
                       <StyledButton 
                         color="secondary" 
                         variant="outlined" 
                         onClick={() => setShowPasswordChange(true)}
+                        disabled={!canPerformActions()}
                         sx={{ ml: 2 }}
                       >
                         Change Password
@@ -534,6 +581,7 @@ const MemberSettings = () => {
                         type={showPassword.oldPassword ? 'text' : 'password'}
                         value={passwordValues.oldPassword}
                         onChange={(e) => setPasswordValues({ ...passwordValues, oldPassword: e.target.value })}
+                        disabled={!canPerformActions()}
                         InputProps={{
                           endAdornment: (
                             <InputAdornment position="end">
@@ -542,6 +590,7 @@ const MemberSettings = () => {
                                 onClick={() => handleClickShowPassword('oldPassword')}
                                 onMouseDown={handleMouseDownPassword}
                                 edge="end"
+                                disabled={!canPerformActions()}
                               >
                                 {showPassword.oldPassword ? <VisibilityOff /> : <Visibility />}
                               </IconButton>
@@ -557,6 +606,7 @@ const MemberSettings = () => {
                         type={showPassword.newPassword ? 'text' : 'password'}
                         value={passwordValues.newPassword}
                         onChange={(e) => setPasswordValues({ ...passwordValues, newPassword: e.target.value })}
+                        disabled={!canPerformActions()}
                         sx={{ mt: 2 }}
                         InputProps={{
                           endAdornment: (
@@ -566,6 +616,7 @@ const MemberSettings = () => {
                                 onClick={() => handleClickShowPassword('newPassword')}
                                 onMouseDown={handleMouseDownPassword}
                                 edge="end"
+                                disabled={!canPerformActions()}
                               >
                                 {showPassword.newPassword ? <VisibilityOff /> : <Visibility />}
                               </IconButton>
@@ -581,6 +632,7 @@ const MemberSettings = () => {
                         type={showPassword.confirmPassword ? 'text' : 'password'}
                         value={passwordValues.confirmPassword}
                         onChange={(e) => setPasswordValues({ ...passwordValues, confirmPassword: e.target.value })}
+                        disabled={!canPerformActions()}
                         sx={{ mt: 2 }}
                         InputProps={{
                           endAdornment: (
@@ -590,6 +642,7 @@ const MemberSettings = () => {
                                 onClick={() => handleClickShowPassword('confirmPassword')}
                                 onMouseDown={handleMouseDownPassword}
                                 edge="end"
+                                disabled={!canPerformActions()}
                               >
                                 {showPassword.confirmPassword ? <VisibilityOff /> : <Visibility />}
                               </IconButton>
@@ -601,6 +654,7 @@ const MemberSettings = () => {
                         color="primary" 
                         variant="contained" 
                         type="submit"
+                        disabled={!canPerformActions()}
                       >
                         Change Password
                       </StyledButton>
@@ -609,6 +663,7 @@ const MemberSettings = () => {
                         variant="outlined" 
                         sx={{ ml: 2, mt: 2 }}
                         onClick={() => setShowPasswordChange(false)}
+                        disabled={!canPerformActions()}
                       >
                         Cancel
                       </StyledButton>

@@ -24,20 +24,26 @@ const TopMembersForDistributor = () => {
         try {
             const response = await api.get(`/api/distributor/top-members?limit=${limit}`);
             if (response.data.success) {
-                setMembers(response.data.data);
+                setMembers(response.data.data || []);
+            } else {
+                console.warn('API returned unsuccessful response:', response.data);
+                setMembers([]);
             }
             setLoading(false);
         } catch (error) {
             console.error('Error fetching top members:', error);
+            setMembers([]);
             setLoading(false);
         }
     };
 
-    const rows = members.map((member, index) => ({
-        ...member,
-        id: member.member._id,
-        rank: index,
-    }));
+    const rows = members
+        .filter(member => member && member.member && member.member._id) // Filter out invalid members
+        .map((member, index) => ({
+            ...member,
+            id: member.member._id,
+            rank: index,
+        }));
 
     return (
         <Box sx={{ p: 3 }}>
@@ -80,6 +86,10 @@ const TopMembersForDistributor = () => {
                             {loading ? (
                                 <TableRow>
                                     <TableCell colSpan={6} align="center">Loading...</TableCell>
+                                </TableRow>
+                            ) : rows.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} align="center">No members found</TableCell>
                                 </TableRow>
                             ) : rows.map((row) => (
                                 <TableRow key={row.id}>

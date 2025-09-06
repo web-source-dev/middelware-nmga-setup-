@@ -99,8 +99,33 @@ const AllCoopMembers = () => {
   };
   
   // Get user data from middleware
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isSupplierManager 
+  } = useAuth();
   const distributorId = currentUserId;
+
+  // Check if user can perform actions (assign suppliers, export data)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Supplier manager
+    if (isSupplierManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -234,24 +259,26 @@ const AllCoopMembers = () => {
       const productSizes = {};
       
       response.data.data.commitments.forEach(commitment => {
-        commitment.sizeCommitments.forEach(sizeCommit => {
-          const key = `${commitment.dealName}|${commitment.category || 'N/A'}|${sizeCommit.size}|${commitment.status}`;
-          
-          if (!productSizes[key]) {
-            productSizes[key] = {
-              dealName: commitment.dealName,
-              category: commitment.category || 'N/A',
-              size: sizeCommit.size,
-              quantity: 0,
-              pricePerUnit: sizeCommit.pricePerUnit,
-              value: 0,
-              status: commitment.status
-            };
-          }
-          
-          productSizes[key].quantity += sizeCommit.quantity;
-          productSizes[key].value += sizeCommit.totalPrice;
-        });
+        if (commitment.sizeCommitments && Array.isArray(commitment.sizeCommitments)) {
+          commitment.sizeCommitments.forEach(sizeCommit => {
+            const key = `${commitment.dealName}|${commitment.category || 'N/A'}|${sizeCommit.size}|${commitment.status}`;
+            
+            if (!productSizes[key]) {
+              productSizes[key] = {
+                dealName: commitment.dealName,
+                category: commitment.category || 'N/A',
+                size: sizeCommit.size,
+                quantity: 0,
+                pricePerUnit: sizeCommit.pricePerUnit || 0,
+                value: 0,
+                status: commitment.status
+              };
+            }
+            
+            productSizes[key].quantity += (sizeCommit.quantity || 0);
+            productSizes[key].value += (sizeCommit.totalPrice || 0);
+          });
+        }
       });
       
       // Add order summary to sheet
@@ -286,18 +313,20 @@ const AllCoopMembers = () => {
       commitmentRows.push(commitmentHeaders);
       
       response.data.data.commitments.forEach(commitment => {
-        commitment.sizeCommitments.forEach(sizeCommit => {
-          commitmentRows.push([
-            commitment.dealName,
-            commitment.category || "N/A",
-            sizeCommit.size,
-            sizeCommit.quantity,
-            `$${sizeCommit.pricePerUnit.toFixed(2)}`,
-            `$${sizeCommit.totalPrice.toFixed(2)}`,
-            commitment.status,
-            new Date(commitment.createdAt).toLocaleDateString()
-          ]);
-        });
+        if (commitment.sizeCommitments && Array.isArray(commitment.sizeCommitments)) {
+          commitment.sizeCommitments.forEach(sizeCommit => {
+            commitmentRows.push([
+              commitment.dealName,
+              commitment.category || "N/A",
+              sizeCommit.size,
+              sizeCommit.quantity || 0,
+              `$${(sizeCommit.pricePerUnit || 0).toFixed(2)}`,
+              `$${(sizeCommit.totalPrice || 0).toFixed(2)}`,
+              commitment.status,
+              new Date(commitment.createdAt).toLocaleDateString()
+            ]);
+          });
+        }
       });
       
       const commitmentSheet = XLSX.utils.aoa_to_sheet(commitmentRows);
@@ -313,17 +342,19 @@ const AllCoopMembers = () => {
       response.data.data.commitments
         .filter(commitment => commitment.status === "approved")
         .forEach(commitment => {
-          commitment.sizeCommitments.forEach(sizeCommit => {
-            shippingDetails.push([
-              commitment.dealName,
-              commitment.category || "N/A",
-              sizeCommit.size,
-              sizeCommit.quantity,
-              `$${sizeCommit.pricePerUnit.toFixed(2)}`,
-              `$${sizeCommit.totalPrice.toFixed(2)}`,
-              new Date(commitment.createdAt).toLocaleDateString()
-            ]);
-          });
+          if (commitment.sizeCommitments && Array.isArray(commitment.sizeCommitments)) {
+            commitment.sizeCommitments.forEach(sizeCommit => {
+              shippingDetails.push([
+                commitment.dealName,
+                commitment.category || "N/A",
+                sizeCommit.size,
+                sizeCommit.quantity || 0,
+                `$${(sizeCommit.pricePerUnit || 0).toFixed(2)}`,
+                `$${(sizeCommit.totalPrice || 0).toFixed(2)}`,
+                new Date(commitment.createdAt).toLocaleDateString()
+              ]);
+            });
+          }
         });
       
       const shippingSheet = XLSX.utils.aoa_to_sheet(shippingDetails);
@@ -341,7 +372,7 @@ const AllCoopMembers = () => {
           .filter(c => c.status === "pending")
           .reduce((sum, c) => sum + c.totalPrice, 0).toFixed(2)}`],
         ["Total Items Ordered", response.data.data.commitments
-          .reduce((sum, c) => sum + c.sizeCommitments.reduce((s, sc) => s + sc.quantity, 0), 0)],
+          .reduce((sum, c) => sum + (c.sizeCommitments ? c.sizeCommitments.reduce((s, sc) => s + (sc.quantity || 0), 0) : 0), 0)],
       ];
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(wb, summarySheet, "Summary");
@@ -407,22 +438,24 @@ const AllCoopMembers = () => {
       
       response.data.data.members.forEach(memberData => {
         memberData.commitments.forEach(commitment => {
-          commitment.sizeCommitments.forEach(sizeCommit => {
-            const key = `${commitment.dealName}|${commitment.category || 'N/A'}|${sizeCommit.size}`;
-            
-            if (!productSizes[key]) {
-              productSizes[key] = {
-                dealName: commitment.dealName,
-                category: commitment.category || 'N/A',
-                size: sizeCommit.size,
-                quantity: 0,
-                value: 0
-              };
-            }
-            
-            productSizes[key].quantity += sizeCommit.quantity;
-            productSizes[key].value += sizeCommit.totalPrice;
-          });
+          if (commitment.sizeCommitments && Array.isArray(commitment.sizeCommitments)) {
+            commitment.sizeCommitments.forEach(sizeCommit => {
+              const key = `${commitment.dealName}|${commitment.category || 'N/A'}|${sizeCommit.size}`;
+              
+              if (!productSizes[key]) {
+                productSizes[key] = {
+                  dealName: commitment.dealName,
+                  category: commitment.category || 'N/A',
+                  size: sizeCommit.size,
+                  quantity: 0,
+                  value: 0
+                };
+              }
+              
+              productSizes[key].quantity += (sizeCommit.quantity || 0);
+              productSizes[key].value += (sizeCommit.totalPrice || 0);
+            });
+          }
         });
       });
       
@@ -464,19 +497,21 @@ const AllCoopMembers = () => {
           let totalItems = 0;
           
           approvedCommitments.forEach(commitment => {
-            commitment.sizeCommitments.forEach(sizeCommit => {
-              packingSlip.push([
-                commitment.dealName,
-                commitment.category || "N/A",
-                sizeCommit.size,
-                sizeCommit.quantity,
-                `$${sizeCommit.pricePerUnit.toFixed(2)}`,
-                `$${sizeCommit.totalPrice.toFixed(2)}`
-              ]);
-              
-              totalOrderValue += sizeCommit.totalPrice;
-              totalItems += sizeCommit.quantity;
-            });
+            if (commitment.sizeCommitments && Array.isArray(commitment.sizeCommitments)) {
+              commitment.sizeCommitments.forEach(sizeCommit => {
+                packingSlip.push([
+                  commitment.dealName,
+                  commitment.category || "N/A",
+                  sizeCommit.size,
+                  sizeCommit.quantity || 0,
+                  `$${(sizeCommit.pricePerUnit || 0).toFixed(2)}`,
+                  `$${(sizeCommit.totalPrice || 0).toFixed(2)}`
+                ]);
+                
+                totalOrderValue += (sizeCommit.totalPrice || 0);
+                totalItems += (sizeCommit.quantity || 0);
+              });
+            }
           });
           
           // Add order totals
@@ -534,23 +569,25 @@ const AllCoopMembers = () => {
       // Process all members and their commitments into a single sheet
       response.data.data.members.forEach(memberData => {
         memberData.commitments.forEach(commitment => {
-          commitment.sizeCommitments.forEach(sizeCommit => {
-            consolidatedRows.push([
-              memberData.member.name,
-              memberData.member.businessName || "N/A",
-              memberData.member.email,
-              memberData.member.phone || "N/A",
-              memberData.member.address || "N/A",
-              commitment.dealName,
-              commitment.category || "N/A",
-              sizeCommit.size,
-              sizeCommit.quantity,
-              `$${sizeCommit.pricePerUnit.toFixed(2)}`,
-              `$${sizeCommit.totalPrice.toFixed(2)}`,
-              commitment.status,
-              new Date(commitment.createdAt).toLocaleDateString()
-            ]);
-          });
+          if (commitment.sizeCommitments && Array.isArray(commitment.sizeCommitments)) {
+            commitment.sizeCommitments.forEach(sizeCommit => {
+              consolidatedRows.push([
+                memberData.member.name,
+                memberData.member.businessName || "N/A",
+                memberData.member.email,
+                memberData.member.phone || "N/A",
+                memberData.member.address || "N/A",
+                commitment.dealName,
+                commitment.category || "N/A",
+                sizeCommit.size,
+                sizeCommit.quantity || 0,
+                `$${(sizeCommit.pricePerUnit || 0).toFixed(2)}`,
+                `$${(sizeCommit.totalPrice || 0).toFixed(2)}`,
+                commitment.status,
+                new Date(commitment.createdAt).toLocaleDateString()
+              ]);
+            });
+          }
         });
       });
       
@@ -1038,7 +1075,7 @@ const AllCoopMembers = () => {
                 backgroundColor: 'primary.main',
               }}
               onClick={handleBulkSupplierExport}
-              disabled={exportLoading || !bulkExportSupplierId}
+              disabled={exportLoading || !bulkExportSupplierId || !canPerformActions()}
             >
               Export Supplier Data
             </Button>
@@ -1047,7 +1084,7 @@ const AllCoopMembers = () => {
               variant="contained"
               color="primary"
               onClick={handleExportAllData}
-              disabled={exportLoading}
+              disabled={exportLoading || !canPerformActions()}
             >
               Export Summary
             </Button>
@@ -1283,6 +1320,7 @@ const AllCoopMembers = () => {
                         size="small"
                         variant="contained"
                         color="primary"
+                        disabled={!canPerformActions()}
                         startIcon={<ExternalLinkIcon sx={{ color: 'primary.contrastText' }} />}
                       >
                         {member.suppliers && member.suppliers.length > 0 ? "Manage Suppliers" : "Assign Suppliers"}
@@ -1293,6 +1331,7 @@ const AllCoopMembers = () => {
                         color="primary.contrastText"
                         startIcon={<DownloadIcon sx={{ color: 'primary.contrastText' }} />}
                         onClick={(e) => handleMenuOpen(e, member)}
+                        disabled={!canPerformActions()}
                       >
                         Export
                       </Button>
@@ -1315,7 +1354,7 @@ const AllCoopMembers = () => {
             handleExportMemberData(menuMember?.user._id);
             handleMenuClose();
           }}
-          disabled={exportLoading}
+          disabled={exportLoading || !canPerformActions()}
         >
           Member Data
         </MenuItem>
@@ -1326,7 +1365,7 @@ const AllCoopMembers = () => {
               handleExportSupplierData(supplier._id);
               handleMenuClose();
             }}
-            disabled={exportLoading}
+            disabled={exportLoading || !canPerformActions()}
           >
             All Members for {supplier.name}
           </MenuItem>

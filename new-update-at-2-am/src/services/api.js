@@ -87,7 +87,11 @@ export const getCurrentUserContext = () => {
     },
     isImpersonating: decoded.isImpersonating || false,
     impersonatedUserId: decoded.impersonatedUserId,
-    adminId: decoded.adminId
+    adminId: decoded.adminId,
+    isCollaborator: decoded.isCollaborator || false,
+    collaboratorId: decoded.collaboratorId,
+    collaboratorRole: decoded.collaboratorRole,
+    collaboratorEmail: decoded.collaboratorEmail
   };
 };
 
@@ -146,6 +150,110 @@ export const isImpersonating = () => {
   
   const decoded = decodeToken(token);
   return decoded && decoded.isImpersonating === true;
+};
+
+// Helper function to check if user is a collaborator
+export const isCollaborator = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true;
+};
+
+// Helper function to check if user is a collaborator manager
+export const isCollaboratorManager = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true && decoded.collaboratorRole === 'manager';
+};
+
+// Helper function to check if user is a deal manager
+export const isDealManager = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true && 
+         (decoded.collaboratorRole === 'deal_manager' || decoded.collaboratorRole === 'manager');
+};
+
+// Helper function to check if user is a supplier manager
+export const isSupplierManager = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true && 
+         (decoded.collaboratorRole === 'supplier_manager' || decoded.collaboratorRole === 'manager');
+};
+
+// Helper function to check if user is a media manager
+export const isMediaManager = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true && 
+         (decoded.collaboratorRole === 'media_manager' || decoded.collaboratorRole === 'manager');
+};
+
+// Helper function to check if user is a commitment manager
+export const isCommitmentManager = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true && 
+         (decoded.collaboratorRole === 'commitment_manager' || decoded.collaboratorRole === 'manager');
+};
+
+// Helper function to check if user is a substore manager
+export const isSubstoreManager = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true && 
+         (decoded.collaboratorRole === 'substore_manager' || decoded.collaboratorRole === 'manager');
+};
+
+// Helper function to check if user is a collaborator viewer
+export const isCollaboratorViewer = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  return decoded && decoded.isCollaborator === true;
+};
+
+// Helper function to check if collaborator has specific role(s)
+export const hasCollaboratorRole = (requiredRoles) => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.isCollaborator) return false;
+  
+  const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+  return roles.includes(decoded.collaboratorRole);
+};
+
+// Helper function to get collaborator info
+export const getCollaboratorInfo = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.isCollaborator) return null;
+  
+  return {
+    collaboratorId: decoded.collaboratorId,
+    collaboratorRole: decoded.collaboratorRole,
+    collaboratorEmail: decoded.collaboratorEmail
+  };
 };
 
 export default api;

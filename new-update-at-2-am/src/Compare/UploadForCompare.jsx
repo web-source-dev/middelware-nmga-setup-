@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../services/api';
+import { useAuth } from '../middleware/auth';
 import { 
   Alert, Box, Button, Card, CardContent, CardHeader, 
   LinearProgress, Typography, TextField, CircularProgress,
@@ -23,6 +24,32 @@ const UploadForCompare = ({ dealId, dealName, onUploadComplete }) => {
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [validationDialogMessage, setValidationDialogMessage] = useState('');
   const [showHelpDialog, setShowHelpDialog] = useState(false);
+
+  // Get user info from middleware
+  const { 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isSupplierManager 
+  } = useAuth();
+
+  // Check if user can perform actions (download template, upload file)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Supplier manager
+    if (isSupplierManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   
   const validateCSVFile = (selectedFile) => {
     // Check if file is selected
@@ -207,6 +234,7 @@ const UploadForCompare = ({ dealId, dealName, onUploadComplete }) => {
           <Button
             variant="outlined"
             onClick={handleDownloadTemplate}
+            disabled={!canPerformActions()}
             sx={{ mt: 2 }}
             color="primary.contrastText"
             startIcon={<DownloadIcon sx={{ color: 'primary.contrastText' }} />}
@@ -225,7 +253,7 @@ const UploadForCompare = ({ dealId, dealName, onUploadComplete }) => {
             type="file"
             fullWidth
             onChange={handleFileChange}
-            disabled={uploading}
+            disabled={uploading || !canPerformActions()}
             InputProps={{ 
               inputProps: { accept: '.csv' }
             }}
@@ -290,7 +318,7 @@ const UploadForCompare = ({ dealId, dealName, onUploadComplete }) => {
           <Button
             variant="contained"
             type="submit"
-            disabled={uploading || !file || success}
+            disabled={uploading || !file || success || !canPerformActions()}
             fullWidth
             startIcon={uploading ? null : <UploadIcon sx={{ color: 'primary.contrastText' }} />}
           >

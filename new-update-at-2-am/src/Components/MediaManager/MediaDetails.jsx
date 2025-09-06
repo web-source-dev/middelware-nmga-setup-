@@ -44,7 +44,36 @@ import { useSnackbar } from "notistack";
 
 const MediaDetails = ({ media, onClose, onDelete, folders, onUpdate }) => {
   const { enqueueSnackbar } = useSnackbar();
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager, 
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (edit, delete, move media)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mediaData, setMediaData] = useState({
@@ -532,6 +561,7 @@ const MediaDetails = ({ media, onClose, onDelete, folders, onUpdate }) => {
               fullWidth 
               variant="outlined" 
               onClick={() => setEditing(true)}
+              disabled={!canPerformActions()}
               startIcon={<EditIcon />}
               size="small"
             >
@@ -554,6 +584,7 @@ const MediaDetails = ({ media, onClose, onDelete, folders, onUpdate }) => {
                 variant="outlined" 
                 color="error"
                 onClick={onDelete}
+                disabled={!canPerformActions()}
                 startIcon={<DeleteIcon />}
                 sx={{ flex: 1 }}
                 size="small"
@@ -571,13 +602,13 @@ const MediaDetails = ({ media, onClose, onDelete, folders, onUpdate }) => {
         open={menuOpen}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={() => { setEditing(true); handleMenuClose(); }}>
+        <MenuItem onClick={() => { setEditing(true); handleMenuClose(); }} disabled={!canPerformActions()}>
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Edit Media</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleOpenMoveDialog}>
+        <MenuItem onClick={handleOpenMoveDialog} disabled={!canPerformActions()}>
           <ListItemIcon>
             <DriveFileMoveIcon fontSize="small" />
           </ListItemIcon>

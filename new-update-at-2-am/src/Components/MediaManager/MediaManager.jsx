@@ -27,7 +27,36 @@ const MediaManager = ({
 }) => {
   const theme = useTheme();
   const { enqueueSnackbar } = useSnackbar();
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager, 
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (upload media)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   
   // State management
   const [loading, setLoading] = useState(false);
@@ -365,6 +394,7 @@ const MediaManager = ({
               variant="contained"
               color="primary"
               onClick={() => setUploadDialogOpen(true)}
+              disabled={!canPerformActions()}
             >
               Add Media
             </Button>

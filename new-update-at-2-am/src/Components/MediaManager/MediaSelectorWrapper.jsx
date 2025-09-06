@@ -23,7 +23,36 @@ import { useAuth } from '../../middleware/auth';
  */
 const MediaSelectorWrapper = ({ onMediaSelect, onCancel }) => {
   const { enqueueSnackbar } = useSnackbar();
-  const { currentUserId, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager, 
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (upload new media)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -110,6 +139,7 @@ const MediaSelectorWrapper = ({ onMediaSelect, onCancel }) => {
           variant="contained"
           startIcon={<CloudUploadIcon />}
           onClick={() => setUploadDialogOpen(true)}
+          disabled={!canPerformActions()}
           color="primary.contrastText"
         >
           Upload New Media

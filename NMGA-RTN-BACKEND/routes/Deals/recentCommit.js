@@ -4,6 +4,7 @@ const Deal = require('../../models/Deals');
 const Commitment = require('../../models/Commitments');
 const { isAdmin, getCurrentUserContext } = require('../../middleware/auth');
 const Log = require('../../models/Logs');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Get recent deals and commitments (admin only)
 router.get('/recent', isAdmin, async (req, res) => {
@@ -25,10 +26,10 @@ router.get('/recent', isAdmin, async (req, res) => {
             .populate('dealId', 'name description');
 
         // Log the action
-        await Log.create({
-            message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) viewed recent activity - Deals: ${recentDeals.length}, Commitments: ${recentCommitments.length}`,
-            type: 'info',
-            user_id: adminId
+        await logCollaboratorAction(req, 'view_recent_activity', 'recent data', { 
+            recentDeals: recentDeals.length,
+            recentCommitments: recentCommitments.length,
+            additionalInfo: 'Admin viewed recent deals and commitments activity'
         });
 
         res.json({
@@ -40,18 +41,9 @@ router.get('/recent', isAdmin, async (req, res) => {
         console.error('Error fetching recent data:', error);
         
         // Log the error
-        try {
-            const { currentUser, originalUser, isImpersonating } = getCurrentUserContext(req);
-            const adminId = currentUser.id;
-            
-            await Log.create({
-                message: `Admin ${isImpersonating ? originalUser.name : currentUser.name} (${isImpersonating ? originalUser.email : currentUser.email}) failed to view recent activity - Error: ${error.message}`,
-                type: 'error',
-                user_id: adminId
-            });
-        } catch (logError) {
-            console.error('Error logging:', logError);
-        }
+        await logCollaboratorAction(req, 'view_recent_activity_failed', 'recent data', { 
+            additionalInfo: `Error: ${error.message}`
+        });
         
         res.status(500).json({
             success: false,

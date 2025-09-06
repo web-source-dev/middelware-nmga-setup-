@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 // Core system routes
 router.use('/logs', require('./LogRoute'));
@@ -41,8 +42,19 @@ const limiter = rateLimit({
 router.use(limiter);
 
 // Add error handling middleware
-router.use((err, req, res, next) => {
+router.use(async (err, req, res, next) => {
   console.error(err.stack);
+  
+  // Log the error
+  try {
+    await logCollaboratorAction(req, 'system_error', 'error handling', {
+      additionalInfo: `Error: ${err.message}`,
+      errorStack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  } catch (logError) {
+    console.error('Error logging system error:', logError);
+  }
+  
   res.status(500).json({ 
     error: 'Internal Server Error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined

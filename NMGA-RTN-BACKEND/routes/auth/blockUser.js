@@ -6,6 +6,7 @@ const sendEmail = require('../../utils/email');
 const blockUserEmail = require('../../utils/EmailTemplates/blockUserEmail');
 const { sendAuthMessage } = require('../../utils/message');
 const { isAdmin } = require('../../middleware/auth');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.post('/', isAdmin, async (req, res) => {
   try {
@@ -16,12 +17,12 @@ router.post('/', isAdmin, async (req, res) => {
       return res.status(404).json({ message: 'User not found', success: false });
     }
 
-    const log = new Log({
-      message: `Account access suspended: ${user.name}'s account has been temporarily deactivated by administrator`,
-      type: 'warning',
-      user_id: user._id
+    // Log the action
+    await logCollaboratorAction(req, 'block_user', 'user management', {
+      targetUserName: user.name,
+      targetUserEmail: user.email,
+      additionalInfo: 'Account access suspended'
     });
-    await log.save();
 
     const emailContent = blockUserEmail(user.name);
     await sendEmail(user.email, 'Account Blocked', emailContent);

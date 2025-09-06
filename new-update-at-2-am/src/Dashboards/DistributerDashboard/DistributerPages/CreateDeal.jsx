@@ -6,6 +6,7 @@ import {
   InputAdornment, Select, MenuItem, FormControl, InputLabel, FormHelperText,
   Avatar, Chip, Fade, Tooltip, Zoom, alpha, Alert, AlertTitle
 } from '@mui/material';
+import LockIcon from '@mui/icons-material/Lock';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
@@ -974,8 +975,55 @@ function getNextMonthName(monthName, year) {
 }
 
 const CreateDeal = ({ initialData, onClose, onSubmit }) => {
-  const { currentUserId, isImpersonating, userRole } = useAuth();
+  const { 
+    currentUserId, 
+    isImpersonating, 
+    userRole, 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isDealManager 
+  } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user can access create deal functionality
+  const canAccessCreateDeal = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot access create deal
+    return false;
+  };
+
+  // Access Denied Component
+  const AccessDeniedMessage = () => (
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Card sx={{ maxWidth: 500, mx: 'auto', mt: 2 }}>
+        <CardContent sx={{ textAlign: 'center', py: 4 }}>
+          <LockIcon sx={{ fontSize: 48, color: 'error.main', mb: 2 }} />
+          <Typography variant="h6" gutterBottom>
+            Access Denied
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            You don't have the required permissions to access deal creation functionality.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Required roles: Manager, Deal Manager, or Admin
+          </Typography>
+        </CardContent>
+      </Card>
+    </Container>
+  );
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -1242,6 +1290,11 @@ const CreateDeal = ({ initialData, onClose, onSubmit }) => {
 
   if (loading) {
     return <CreateDealSkeleton />;
+  }
+
+  // Show access denied message for unauthorized users
+  if (!canAccessCreateDeal()) {
+    return <AccessDeniedMessage />;
   }
 
   // Calculate average savings

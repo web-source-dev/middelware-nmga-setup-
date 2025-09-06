@@ -2,9 +2,15 @@ const express = require('express');
 const router = express.Router();
 const User = require('../../models/User');
 const bcrypt = require('bcryptjs');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.get('/data/:id', async (req, res) => {
   try {
+    // Log the action
+    await logCollaboratorAction(req, 'view_user_data', 'user data', {
+      targetUserId: req.params.id
+    });
+    
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

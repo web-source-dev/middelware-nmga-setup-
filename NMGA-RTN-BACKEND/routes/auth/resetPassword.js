@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const Log = require('../../models/Logs');
 const sendEmail = require('../../utils/email');
 const passwordChangedEmail = require('../../utils/EmailTemplates/passwordChangedEmail');
+const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 
 router.post('/:token', async (req, res) => {
   const { token } = req.params;
@@ -31,12 +32,12 @@ router.post('/:token', async (req, res) => {
     // Perform logging and email sending asynchronously
     setImmediate(async () => {
       try {
-        const log = new Log({
-          message: `Security update: ${user.name} has successfully completed password reset procedure`,
-          type: 'success',
-          user_id: user._id
+        // Log the action
+        await logCollaboratorAction(req, 'change_password', 'password reset', {
+          targetUserName: user.name,
+          targetUserEmail: user.email,
+          additionalInfo: 'Password reset completed successfully'
         });
-        await log.save();
 
         const emailContent = passwordChangedEmail(user.name);
         await sendEmail(user.email, 'Password Changed Successfully', emailContent);

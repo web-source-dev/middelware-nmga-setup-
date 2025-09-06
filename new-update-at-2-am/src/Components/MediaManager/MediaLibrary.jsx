@@ -37,6 +37,7 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CloseIcon from "@mui/icons-material/Close";
 import { format } from "date-fns";
+import { useAuth } from "../../middleware/auth";
 
 // Helper function to format file size
 const formatFileSize = (bytes) => {
@@ -78,6 +79,36 @@ const MediaLibrary = ({
   const theme = useTheme();
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [viewedMedia, setViewedMedia] = useState(null);
+
+  // Get user info from middleware
+  const { 
+    isCollaborator, 
+    isAdmin, 
+    isCollaboratorManager, 
+    isMediaManager, 
+    isDealManager 
+  } = useAuth();
+
+  // Check if user can perform actions (delete media)
+  const canPerformActions = () => {
+    // Main account owner (not a collaborator)
+    if (!isCollaborator) return true;
+    
+    // Admin (with or without impersonating)
+    if (isAdmin) return true;
+    
+    // Collaborator manager
+    if (isCollaboratorManager) return true;
+    
+    // Media manager
+    if (isMediaManager) return true;
+    
+    // Deal manager
+    if (isDealManager) return true;
+    
+    // All other collaborators cannot perform actions
+    return false;
+  };
   
   // Function to open media in popup viewer
   const handleOpenMediaViewer = (media, e) => {
@@ -292,6 +323,7 @@ const MediaLibrary = ({
                   <IconButton 
                     size="small" 
                     color="error"
+                    disabled={!canPerformActions()}
                     onClick={(e) => {
                       e.stopPropagation();
                       onMediaDelete(media._id);
@@ -425,6 +457,7 @@ const MediaLibrary = ({
                     <IconButton 
                       size="small" 
                       color="error"
+                      disabled={!canPerformActions()}
                       onClick={(e) => {
                         e.stopPropagation();
                         onMediaDelete(media._id);
