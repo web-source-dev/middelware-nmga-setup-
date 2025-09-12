@@ -89,6 +89,48 @@ const dealSchema = new mongoose.Schema({
       sentAt: { type: Date }
     }],
     default: new Map()
+  },
+
+  // Distributor reminder tracking
+  distributorReminders: {
+    postingReminders: {
+      type: Map,
+      of: [{
+        reminderType: { type: String, enum: ['5_days', '3_days', '1_day'] },
+        sentAt: { type: Date }
+      }],
+      default: new Map()
+    },
+    approvalReminders: {
+      type: Map,
+      of: [{
+        reminderType: { type: String, enum: ['5_days_after_commitment'] },
+        sentAt: { type: Date }
+      }],
+      default: new Map()
+    }
+  },
+
+  // Member reminder tracking
+  memberReminders: {
+    windowOpeningReminders: {
+      type: Map,
+      of: [{
+        reminderType: { type: String, enum: ['1_day_before_opening'] },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        sentAt: { type: Date }
+      }],
+      default: new Map()
+    },
+    windowClosingReminders: {
+      type: Map,
+      of: [{
+        reminderType: { type: String, enum: ['5_days_before_closing', '3_days_before_closing', '1_day_before_closing', '1_hour_before_closing'] },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        sentAt: { type: Date }
+      }],
+      default: new Map()
+    }
   }
 }, {
   timestamps: true

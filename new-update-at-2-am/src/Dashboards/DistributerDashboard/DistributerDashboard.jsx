@@ -35,28 +35,36 @@ import { Alert } from '@mui/material';
 const DistributerDashboard = () => {
   const navigate = useNavigate();
   let match = useMatch('/dashboard/distributor/*');
-  const { 
-    currentUserId, 
-    userRole, 
-    isImpersonating, 
-    isCollaborator, 
-    collaboratorName, 
+  const {
+    currentUserId,
+    userRole,
+    isImpersonating,
+    isCollaborator,
+    collaboratorName,
     collaboratorRole,
     isCollaboratorManager,
     isDealManager,
     isSupplierManager,
     isMediaManager,
     hasCollaboratorRole,
-    isAdmin
+    isAdmin,
+    isAuthenticated: authStatus
   } = useAuth();
   const [splashContent, setSplashContent] = useState([]);
 
   useEffect(() => {
-    // Check if user is authenticated and has the right role
-    if (!currentUserId || (userRole !== 'distributor' && !isImpersonating)) {
+    // Check authentication status using middleware
+    if (!authStatus) {
       navigate('/login');
+      return;
     }
-  }, [currentUserId, userRole, isImpersonating, navigate]);
+
+    // Check if user has the right role
+    if (userRole !== 'distributor' && !isImpersonating) {
+      navigate('/dashboard');
+      return;
+    }
+  }, [authStatus, userRole, isImpersonating, navigate]);
 
   useEffect(() => {
     const fetchSplashContent = async () => {
@@ -91,7 +99,7 @@ const DistributerDashboard = () => {
     if (!isCollaborator || isCollaboratorManager || isAdmin || isImpersonating || collaboratorRole === 'viewer') {
       return [
         ...baseLinks,
-        { 
+        {
           title: 'Deals',
           subLinks: [
             { path: `deal/create`, label: 'Create Deal' },
@@ -104,7 +112,7 @@ const DistributerDashboard = () => {
         { path: `coop-members`, label: 'Suppliers' },
         { path: `distributor/compare`, label: 'Compare Supply' },
         { path: `media`, label: 'Media' },
-        { path: `collaborators`, label: 'Team Management' }
+        { path: `collaborators`, label: 'Staff Management' }
       ];
     }
 
@@ -171,7 +179,7 @@ const DistributerDashboard = () => {
     if (role === 'substore_manager') return 'Sub-Store Manager';
     if (role === 'viewer') return 'Viewer';
     if (role === 'deal_manager') return 'Deal Manager';
-    if (role === 'manager') return 'Manager';
+    if (role === 'manager') return 'Account Admin';
   };
   const getRoleColor = (role) => {
     switch (role) {
@@ -198,89 +206,61 @@ const DistributerDashboard = () => {
       <div style={{ display: 'flex', width: '100%' }}>
         <Sidebar match={match} links={links} />
         <div style={{ flexGrow: 1, padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',borderBottom: '1px solid #e0e0e0',paddingBottom: '10px' }}>
-          {/* Show role information for collaborators */}
-          {isCollaborator && getRoleInfoMessage() && (
-            <Alert 
-              severity="info" 
-              icon={<InfoIcon />}
-              sx={{ 
-                mb: 2,
-                '& .MuiAlert-message': {
-                  fontSize: '0.875rem'
-                }
-              }}
-            >
-              <strong>Role Information:</strong> {getRoleInfoMessage()}
-            </Alert>
-          )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-
-            
-            {/* Show collaborator indicator */}
-            {isCollaborator && (
-              <div style={{ 
-                backgroundColor: getRoleColor(collaboratorRole), 
-                color: 'white', 
-                padding: '6px 12px', 
-                borderRadius: '20px', 
-                fontSize: '12px',
-                fontWeight: '600',
-                marginRight: '12px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(255,255,255,0.8)',
-                  marginRight: '4px'
-                }}></div>
-                {displayRole(collaboratorRole)}
-              </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0', paddingBottom: '10px' }}>
+            {/* Show role information for collaborators */}
+            <div>
+            {isCollaborator && getRoleInfoMessage() && (
+              <Alert
+                severity="info"
+                icon={<InfoIcon />}
+                sx={{
+                  mb: 2,
+                  '& .MuiAlert-message': {
+                    fontSize: '0.875rem'
+                  }
+                }}
+              >
+                <strong>Role Information:</strong> {getRoleInfoMessage()}
+              </Alert>
             )}
-          <Button
-              onClick={() => {
-                const authParams = `id=${currentUserId}&session=${currentUserId}&role=distributor&offer=true&user_role=${encodeURIComponent(userRole)}&user_id=${encodeURIComponent(currentUserId)}`;
-                navigate(`offers/view/splash-content?${authParams}`);
-              }}
-              sx={{
-                border: '2px solid',
-                borderColor: 'primary.contrastText',
-                color: 'primary.contrastText',
-                backgroundColor: 'white',
-                padding: 1,
-                cursor: 'pointer',
-                borderRadius: 25,
-                fontSize: '16px',
-                fontWeight: 'bold',
-                textTransform: 'uppercase',
-                transition: 'background-color 0.3s ease',
-                marginRight: '20px',  
-                '&:hover': {
-                  backgroundColor: 'primary.main',
-                  color: 'primary.contrastText',
-                },
-              }}
-            >
-              Advertisements
-            </Button>
-
-            
-            {/* Show "Go Back to Admin Dashboard" button only when impersonating */}
-            {isImpersonating && localStorage.getItem('adminToken') && (
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+              {/* Show collaborator indicator */}
+              {isCollaborator && (
+                <div style={{
+                  backgroundColor: getRoleColor(collaboratorRole),
+                  color: 'white',
+                  padding: '6px 12px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  marginRight: '12px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(255,255,255,0.8)',
+                    marginRight: '4px'
+                  }}></div>
+                  {displayRole(collaboratorRole)}
+                </div>
+              )}
               <Button
-                onClick={handleGoBackToAdmin}
-                startIcon={<AdminPanelSettings />}
+                onClick={() => {
+                  const authParams = `id=${currentUserId}&session=${currentUserId}&role=distributor&offer=true&user_role=${encodeURIComponent(userRole)}&user_id=${encodeURIComponent(currentUserId)}`;
+                  navigate(`offers/view/splash-content?${authParams}`);
+                }}
                 sx={{
                   border: '2px solid',
-                  borderColor: '#ff9800',
-                  color: '#ff9800',
+                  borderColor: 'primary.contrastText',
+                  color: 'primary.contrastText',
                   backgroundColor: 'white',
                   padding: 1,
                   cursor: 'pointer',
@@ -291,22 +271,50 @@ const DistributerDashboard = () => {
                   transition: 'background-color 0.3s ease',
                   marginRight: '20px',
                   '&:hover': {
-                    backgroundColor: '#ff9800',
-                    color: 'white',
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
                   },
                 }}
               >
-                Back to Admin
+                Advertisements
               </Button>
-            )}
-            
-            <NotificationIcon />
-            <Logout />
-            </div> 
+
+
+              {/* Show "Go Back to Admin Dashboard" button only when impersonating */}
+              {isImpersonating && localStorage.getItem('adminToken') && (
+                <Button
+                  onClick={handleGoBackToAdmin}
+                  startIcon={<AdminPanelSettings />}
+                  sx={{
+                    border: '2px solid',
+                    borderColor: '#ff9800',
+                    color: '#ff9800',
+                    backgroundColor: 'white',
+                    padding: 1,
+                    cursor: 'pointer',
+                    borderRadius: 25,
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    transition: 'background-color 0.3s ease',
+                    marginRight: '20px',
+                    '&:hover': {
+                      backgroundColor: '#ff9800',
+                      color: 'white',
+                    },
+                  }}
+                >
+                  Back to Admin
+                </Button>
+              )}
+
+              <NotificationIcon />
+              <Logout />
+            </div>
           </div>
 
           <Routes>
-            <Route path="" element={<>  
+            <Route path="" element={<>
               <AnnouncementToast event="signup" />
               <DefualtPage />
             </>} />

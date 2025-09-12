@@ -9,10 +9,6 @@ const Logout = () => {
   const { isImpersonating } = useAuth();
 
   const handleLogout = async () => {
-    const user_id = localStorage.getItem('user_id');
-    const admin_id = localStorage.getItem('admin_id');
-    const id = user_id || admin_id;
-    
     try {
       // Check if admin is impersonating and has admin token
       const adminToken = localStorage.getItem('adminToken');

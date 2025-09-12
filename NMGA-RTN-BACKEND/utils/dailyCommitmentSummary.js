@@ -2,9 +2,16 @@ const DailyCommitmentSummary = require('../models/DailyCommitmentSummary');
 const User = require('../models/User');
 const sendEmail = require('./email');
 const DailyCommitmentSummaryTemplate = require('./EmailTemplates/DailyCommitmentSummaryTemplate');
+const { isFeatureEnabled } = require('../config/features');
 
 const sendDailyCommitmentSummaries = async () => {
     try {
+        // Check if daily summaries feature is enabled
+        if (!(await isFeatureEnabled('DAILY_SUMMARIES'))) {
+            console.log('📊 Daily commitment summaries feature is disabled');
+            return;
+        }
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 

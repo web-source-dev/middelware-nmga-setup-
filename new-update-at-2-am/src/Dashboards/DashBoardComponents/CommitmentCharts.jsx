@@ -43,6 +43,7 @@ import {
 } from 'recharts';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../middleware/auth';
 import { 
     Refresh as RefreshIcon, 
     Download as DownloadIcon,
@@ -62,6 +63,7 @@ import { AnalyticsSkeleton } from '../../Components/Skeletons/LoadingSkeletons';
 const CommitmentCharts = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { userRole, currentUserId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [commitmentData, setCommitmentData] = useState({
     totalCommitments: 0,
@@ -69,12 +71,10 @@ const CommitmentCharts = () => {
     timelineData: [],
     totalAmount: 0,
   });
-  const userRole = localStorage.getItem('user_role');
   const [timeRange, setTimeRange] = useState('all');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const currentUserId = localStorage.getItem('user_id');
   const [filteredData, setFilteredData] = useState({
     timelineData: [],
     totalCommitments: 0,

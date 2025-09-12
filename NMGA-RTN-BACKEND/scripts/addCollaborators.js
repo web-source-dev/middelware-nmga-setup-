@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import User from "./models/User.js";
+import User from "../models/User"; // Add this line to require the User model
 import bcrypt from "bcryptjs";
 
 // Database connection

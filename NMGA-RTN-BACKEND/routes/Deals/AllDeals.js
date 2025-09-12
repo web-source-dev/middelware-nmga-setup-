@@ -927,7 +927,6 @@ router.get('/deal-analytics/:dealId', isDistributorAdmin, async (req, res) => {
     }
 });
 
-
 // Get detailed commitments for a specific deal
 router.get('/deal-commitments-admin/:dealId', isAdmin, async (req, res) => {
     try {

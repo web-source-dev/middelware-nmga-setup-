@@ -45,10 +45,10 @@ const MemberDashboard = () => {
     isCommitmentManager,
     isSubstoreManager,
     hasCollaboratorRole,
-    isAdmin: isAdminUser
+    isAdmin: isAdminUser,
+    currentUserId
   } = useAuth();
   const userContext = getCurrentUserContext();
-  const userId = userContext.user?.id;
 
   useEffect(() => {
     // Check authentication and role access
@@ -139,7 +139,7 @@ const MemberDashboard = () => {
           { path: 'analytics', label: 'Analytics' },
           { path: 'add-members', label: 'Add Stores' },
           { path: 'detailed-analytics', label: 'Detailed Analytics' },
-          { path: 'collaborators', label: 'Team Management' }
+          { path: 'collaborators', label: 'Staff Management' }
         ];
       }
       return baseLinks;
@@ -168,7 +168,7 @@ const MemberDashboard = () => {
         { path: 'analytics', label: 'Analytics' },
         { path: 'add-members', label: 'Add Stores' },
         { path: 'detailed-analytics', label: 'Detailed Analytics' },
-        { path: 'collaborators', label: 'Team Management' }
+        { path: 'collaborators', label: 'Staff Management' }
       ];
     }
 
@@ -202,7 +202,7 @@ const MemberDashboard = () => {
     if (role === 'substore_manager') return 'Sub-Store Manager';
     if (role === 'viewer') return 'Viewer';
     if (role === 'deal_manager') return 'Deal Manager';
-    if (role === 'manager') return 'Manager';
+    if (role === 'manager') return 'Account Admin';
   };
   const getRoleColor = (role) => {
     switch (role) {
@@ -230,13 +230,13 @@ const MemberDashboard = () => {
         <div style={{ flexGrow: 1, padding: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',borderBottom: '1px solid #e0e0e0',paddingBottom: '10px' }}>
             {/* Show role information for collaborators */}
+            <div>
             {isCollaborator && getRoleInfoMessage() && (
               <Alert
                 severity="info"
                 icon={<InfoIcon />}
                 sx={{
                   mb: 2,
-                  width: '40%',
                   '& .MuiAlert-message': {
                     fontSize: '0.875rem'
                   }
@@ -245,6 +245,7 @@ const MemberDashboard = () => {
                 <strong>Role Information:</strong> {getRoleInfoMessage()}
               </Alert>
             )}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
 
 
@@ -319,7 +320,7 @@ const MemberDashboard = () => {
 
               <Button
                 onClick={() => {
-                  const authParams = `id=${userId}&session=${userId}&role=distributor&offer=true&token=${encodeURIComponent(localStorage.getItem('token'))}&user_role=${encodeURIComponent(userContext.user?.role || 'member')}&user_id=${encodeURIComponent(userId)}`;
+                  const authParams = `id=${currentUserId}&session=${currentUserId}&role=distributor&offer=true&token=${encodeURIComponent(localStorage.getItem('token'))}&user_role=${encodeURIComponent(userContext.user?.role || 'member')}&user_id=${encodeURIComponent(currentUserId)}`;
                   navigate(`offers/view/splash-content?${authParams}`);
                 }}
                 sx={{

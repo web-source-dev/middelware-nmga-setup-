@@ -1,6 +1,7 @@
 const twilio = require('twilio');
 const AuthMessages = require('./MessageTemplates/AuthMessages');
 const DealMessages = require('./MessageTemplates/DealMessages');
+const { isFeatureEnabled } = require('../config/features');
 
 require('dotenv').config();
 let twilioClient = null;
@@ -38,6 +39,13 @@ const initializeTwilio = () => {
 // Update sendSMS function with better error handling
 const sendSMS = async (to, message) => {
     try {
+        // Check if SMS feature is enabled
+        if (!(await isFeatureEnabled('SMS'))) {
+            console.log('📱 SMS feature is disabled. Message would have been sent to:', to);
+            console.log('📱 Message content:', message);
+            return true; // Return true to indicate "success" but no actual SMS sent
+        }
+
         if (!twilioClient) {
             throw new Error('Twilio client not initialized. Check credentials.');
         }

@@ -26,22 +26,36 @@ import { CloudUpload, InfoOutlined } from '@mui/icons-material';
 import UserProfileView from './AdminPages/userProfileView';
 import AllTopMembers from '../../Pages/AllTopMembers';
 import EachMemberDetail from '../../Pages/EachMemberDetail';
+import FeatureManagement from './AdminPages/FeatureManagement';
 
 const AdminDashboard = () => {
   let match = useMatch('/dashboard/admin/*');
   const navigate = useNavigate();
-  const { currentUserId, userRole, isImpersonating } = useAuth();
+  const { 
+    currentUserId, 
+    userRole, 
+    isImpersonating, 
+    isAuthenticated: authStatus,
+    isAdmin: adminStatus 
+  } = useAuth();
   const [splashContent, setSplashContent] = useState([]);
   const [importDialog, setImportDialog] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importStats, setImportStats] = useState(null);
 
   useEffect(() => {
-    // Check if user is authenticated and has admin role
-    if (!currentUserId || userRole !== 'admin') {
+    // Check authentication status using middleware
+    if (!authStatus) {
       navigate('/login');
+      return;
     }
-  }, [currentUserId, userRole, navigate]);
+
+    // Check if user has admin role
+    if (!adminStatus) {
+      navigate('/dashboard');
+      return;
+    }
+  }, [authStatus, adminStatus, navigate]);
 
   useEffect(() => {
     const fetchSplashContent = async () => {
@@ -90,6 +104,7 @@ const AdminDashboard = () => {
     { path: 'deal-management', label: 'Deal Management' },
     { path: 'announcements', label: 'Announcements' },
     { path: 'request/contact/manage', label: 'Contact' },
+    { path: 'feature-management', label: 'Feature Management' },
   ];
 
   return (
@@ -177,6 +192,10 @@ const AdminDashboard = () => {
             <Route path="member-details/:memberId" element={<>
               <AnnouncementToast event="member_details" />
               <EachMemberDetail />
+            </>} />
+            <Route path="feature-management" element={<>
+              <AnnouncementToast event="feature_management" />
+              <FeatureManagement />
             </>} />
           </Routes>          
 

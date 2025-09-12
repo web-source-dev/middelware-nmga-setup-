@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const User = require('./models/User');
-const sendEmail = require('./utils/email');
-const baseTemplate = require('./utils/EmailTemplates/baseTemplate');
+const User = require('../models/User');
+const sendEmail = require('../utils/email');
+const memberCredentialsTemplate = require('../utils/EmailTemplates/memberCredentialsTemplate');
 const xlsx = require('xlsx');
 const fs = require('fs');
 require('dotenv').config();
@@ -82,53 +82,6 @@ function getEmailsFromExcel(filePath) {
     return new Set();
   }
 }
-
-// Email template for member credentials
-const memberCredentialsTemplate = (name, email, businessName, password) => {
-  const content = `
-    <h2>Welcome to NMGA - Your Account Credentials</h2>
-    
-    <p>Hello ${name},</p>
-    
-    <p>Welcome to the New Mexico Grocers Association (NMGA) platform! Your account has been successfully created and you can now access all our member benefits.</p>
-    
-    <div class="alert-box alert-info">
-      <h3>Your Login Credentials</h3>
-      <p><strong>Name:</strong> ${name}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Business Name:</strong> ${businessName}</p>
-      <p><strong>Password:</strong> ${password}</p>
-    </div>
-    
-    <div class="alert-box alert-warning">
-      <h3>Important Security Notice</h3>
-      <p>For your security, we strongly recommend that you change your password after your first login. You can do this by:</p>
-      <ol>
-        <li>Logging into your account using the credentials above</li>
-        <li>Going to your profile settings</li>
-        <li>Selecting "Change Password"</li>
-        <li>Entering a new secure password</li>
-      </ol>
-    </div>
-    
-    <div class="card">
-      <h3 class="card-header">What You Can Do</h3>
-      <ul>
-        <li>Browse and participate in exclusive deals from distributors</li>
-        <li>Access member-only content and resources</li>
-        <li>Connect with other NMGA members</li>
-        <li>Stay updated with industry news and events</li>
-      </ul>
-    </div>
-    
-    <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-    
-    <p>Best regards,<br>
-    <strong>NMGA Team</strong></p>
-  `;
-  
-  return baseTemplate(content);
-};
 
 // Function to send credentials to members who exist in both CSV and database
 async function sendMemberCredentials() {

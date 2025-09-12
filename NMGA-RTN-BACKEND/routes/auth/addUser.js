@@ -6,7 +6,7 @@ const sendEmail = require('../../utils/email');
 const InvitationEmail = require('../../utils/EmailTemplates/InvitationEmail');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { importUsers } = require('../../importUsers');
+const { importUsers } = require('../../scripts/importUsers');
 const { generateUniqueLoginKey } = require('../../utils/loginKeyGenerator');
 const { logCollaboratorAction } = require('../../utils/collaboratorLogger');
 

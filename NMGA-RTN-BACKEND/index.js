@@ -4,10 +4,10 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-const checkDealExpiration = require('./utils/dealExpirationCheck');
+// const checkDealExpiration = require('./utils/dealExpirationCheck');
 const { initializeTwilio } = require('./utils/message');
-const backupToGoogleSheets = require('./utils/googleSheetsBackup');
 const { initializeScheduler } = require('./utils/scheduler');
+const { initializeFeatures, logFeatureStatus } = require('./config/features');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -44,8 +44,12 @@ mongoose.connect(process.env.MONGODB_URI, {
   serverSelectionTimeoutMS: 30000, // Increase to 30 seconds
   
 })
-  .then(() => {
+  .then(async () => {
     console.log('MongoDB connected successfully');
+    
+    // Initialize features in database
+    await initializeFeatures();
+    
     // Start the deal expiration check after DB connection is established
     // checkDealExpiration();
     
@@ -54,10 +58,7 @@ mongoose.connect(process.env.MONGODB_URI, {
     
     // Set up the intervals
     // setInterval(checkDealExpiration, 24 * 60 * 60 * 1000);
-    setInterval(() => {
-      backupToGoogleSheets()
-        .catch(err => console.error('Scheduled backup failed:', err.message));
-    }, 24 * 60 * 60 * 1000); // Daily backup
+    
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
@@ -86,10 +87,6 @@ app.use('/api/compare', require("./routes/Compare/Compare"))
 app.use('/newmembers', require('./routes/newmembers/addmembers'));
 app.use('/api/inactive', require('./routes/Common/notcommitingmembers'));
 app.use('/api/collaborators', require('./routes/Common/Collaborators'));
-
-
-// Test routes for middleware
-app.use('/api/test', require('./routes/test-middleware'));
 
 // Import the MediaManager routes
 const mediaManagerRoutes = require("./routes/MediaManager/MediaManager");
@@ -126,6 +123,9 @@ console.log('Environment Check:', {
 initializeTwilio();
 
 // Replace app.listen with server.listen
-server.listen(port, () => {
+server.listen(port, async () => {
   console.log(`Server running on port ${port}`);
+  
+  // Log current feature status on startup
+  await logFeatureStatus();
 });

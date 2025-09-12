@@ -3,6 +3,7 @@ const router = express.Router();
 const Notification = require('../../models/NotificationModel');
 const User = require('../../models/User');
 const { isAuthenticated, getCurrentUserContext } = require('../../middleware/auth');
+const { isFeatureEnabled } = require('../../config/features');
 
 // Helper function to create notifications
 const createNotification = async ({
@@ -17,6 +18,18 @@ const createNotification = async ({
   priority = 'medium'
 }) => {
   try {
+    // Check if notifications feature is enabled
+    if (!(await isFeatureEnabled('NOTIFICATIONS'))) {
+      console.log('🔔 Notifications feature is disabled. Notification would have been created:', {
+        recipientId,
+        type,
+        subType,
+        title,
+        message
+      });
+      return { _id: 'disabled', recipient: recipientId, message: message }; // Return mock notification
+    }
+
     const notification = await Notification.create({
       recipient: recipientId,
       sender: senderId,

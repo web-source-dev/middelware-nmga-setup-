@@ -1,8 +1,17 @@
 const SibApiV3Sdk = require('@getbrevo/brevo');
 const Log = require('../models/Logs');
 const User = require('../models/User');
+const { isFeatureEnabled } = require('../config/features');
 
 const sendEmail = async (to, subject, html) => {
+  // Check if email feature is enabled
+  if (!(await isFeatureEnabled('EMAIL'))) {
+    console.log('📧 Email feature is disabled. Email would have been sent to:', to);
+    console.log('📧 Subject:', subject);
+    console.log('📧 Content length:', html?.length || 0);
+    return { messageId: 'disabled', to: to, subject: subject }; // Return mock success response
+  }
+
   // Convert single email to array for consistent handling
   const primaryEmails = Array.isArray(to) ? to : [to];
   

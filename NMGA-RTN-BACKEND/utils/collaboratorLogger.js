@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Log = require('../models/Logs');
 const User = require('../models/User');
+const { isFeatureEnabled } = require('../config/features');
 
 /**
  * Extract comprehensive information from JWT token
@@ -492,6 +493,16 @@ const getLogType = (action) => {
  */
 const logCollaboratorAction = async (req, action, resource = '', context = {}) => {
     try {
+        // Check if logging feature is enabled
+        if (!(await isFeatureEnabled('LOGGING'))) {
+            console.log('📝 Logging feature is disabled. Log would have been created:', {
+                action,
+                resource,
+                context
+            });
+            return { success: true, log: { _id: 'disabled' }, message: 'Logging disabled' }; // Return mock success
+        }
+
         // Extract token information
         const tokenInfo = extractTokenInfo(req);
         

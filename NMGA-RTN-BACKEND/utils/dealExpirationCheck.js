@@ -6,6 +6,7 @@ const Log = require('../models/Logs');
 const { sendDealMessage } = require('./message');
 const DealsBatchExpirationTemplate = require('./EmailTemplates/DealsBatchExpirationTemplate');
 const mongoose = require('mongoose');
+const { isFeatureEnabled } = require('../config/features');
 
 const { FRONTEND_URL } = process.env;
 
@@ -14,8 +15,13 @@ const MAX_DEALS_PER_EMAIL = 5;
 
 const checkDealExpiration = async () => {
   try {
-    // Verify database connection first
+    // Check if deal expiration feature is enabled
+    if (!(await isFeatureEnabled('DEAL_EXPIRATION'))) {
+      console.log('⏰ Deal expiration check feature is disabled');
+      return;
+    }
 
+    // Verify database connection first
     console.log(FRONTEND_URL)
     console.log('running expiration check')
     if (mongoose.connection.readyState !== 1) {

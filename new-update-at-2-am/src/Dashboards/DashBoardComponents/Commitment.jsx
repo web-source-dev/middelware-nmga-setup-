@@ -32,6 +32,7 @@ import Toast from '../../Components/Toast/Toast';
 import { useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { useAuth } from '../../middleware/auth';
 import { FilterSection, FilterItem } from './FilterSection';
 import { FilterTextField, FilterSelect, FilterFormControl } from './FilterStyles';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -41,6 +42,7 @@ import 'jspdf-autotable';
 const Commitments = () => {
     const { userId } = useParams();
     const navigate = useNavigate();
+    const { userRole, currentUserId } = useAuth();
     const [commitments, setCommitments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
@@ -49,8 +51,6 @@ const Commitments = () => {
     const [response, setResponse] = useState('');
     const [modifiedQuantity, setModifiedQuantity] = useState('');
     const [modifiedPrice, setModifiedPrice] = useState('');
-    const userRole = localStorage.getItem('user_role');
-    const currentUserId = localStorage.getItem('user_id');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const isMobile = useMediaQuery('(max-width:600px)');

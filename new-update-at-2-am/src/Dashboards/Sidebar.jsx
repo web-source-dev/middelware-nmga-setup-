@@ -53,6 +53,9 @@ import {
   People,
   CompareArrows,
   ContactSupport,
+  Groups,
+  PhotoLibrary,
+  Storefront,
 } from "@mui/icons-material";
 import Links from "../Components/Buttons/Links";
 import { useLocation } from "react-router-dom";
@@ -179,6 +182,12 @@ const Sidebar = ({ match, links, userRole = "admin" }) => {
         return <Assessment  color='primary.contrastText'/>;
       case "Members Tracking":
         return <TrackChanges  color='primary.contrastText'/>;
+      case "Team Management":
+        return <Groups  color='primary.contrastText'/>;
+      case "Stores/Contacts":
+        return <Storefront  color='primary.contrastText'/>;
+      case "Media":
+        return <PhotoLibrary  color='primary.contrastText'/>;
       default:
         return <Description  color='primary.contrastText'/>;
     }

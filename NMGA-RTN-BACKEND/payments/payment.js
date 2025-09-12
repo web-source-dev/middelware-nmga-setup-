@@ -4,10 +4,6 @@ const Payment = require('../models/Paymentmodel');
 const Commitment = require('../models/Commitments');
 const Deal = require('../models/Deals');
 const User = require('../models/User');
-const PaymentNotificationTemplate = require('../utils/EmailTemplates/PaymentNotificationTemplate');
-const sendEmail = require('../utils/email');
-const { sendPaymentNotifications } = require('../utils/paymentNotifications');
-
 // Add error handling for Stripe initialization
 let stripe;
 try {
@@ -71,13 +67,6 @@ router.post('/create-stripe-payment', validatePaymentRequest, async (req, res) =
                 }
             });
 
-        // Send payment notifications
-        const notificationSent = await sendPaymentNotifications(commitment, {
-            amount,
-            method: 'Stripe',
-            transactionId: paymentIntent.id
-        });
-
         if (!notificationSent) {
             console.warn('Failed to send payment notifications');
         }
@@ -107,24 +96,6 @@ router.post('/create-stripe-payment', validatePaymentRequest, async (req, res) =
 
     } catch (error) {
         console.error('Stripe payment error:', error);
-
-        // Handle failed payment notification
-        if (req.body.userDetails?.email) {
-            try {
-                await sendEmail(
-                    req.body.userDetails.email,
-                    'Payment Failed',
-                    PaymentNotificationTemplate.failed.member(
-                        req.body.userDetails.name,
-                        req.body.dealName || 'Unknown Deal',
-                        req.body.amount,
-                        error.message
-                    )
-                );
-            } catch (emailError) {
-                console.error('Failed to send failure notification:', emailError);
-            }
-        }
 
         res.status(500).json({ 
             error: 'An error occurred while processing your payment.',

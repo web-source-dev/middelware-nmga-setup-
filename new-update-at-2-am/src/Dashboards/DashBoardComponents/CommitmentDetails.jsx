@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../middleware/auth';
 import {
     Container,
     Typography,
@@ -98,12 +99,12 @@ const CommitmentDetailsSkeleton = () => (
 const CommitmentDetails = () => {
     const { commitmentId } = useParams();
     const navigate = useNavigate();
+    const { currentUserId } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [commitment, setCommitment] = useState(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
-    const [currentUserId, setCurrentUserId] = useState(null);
 
     useEffect(() => {
         const fetchCommitmentDetails = async () => {
@@ -118,7 +119,6 @@ const CommitmentDetails = () => {
                 );
                 console.log('Fetched commitment:', response.data);
                 setCommitment(response.data);
-                setCurrentUserId(localStorage.getItem('user_id'));
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching commitment details:', error);

@@ -129,9 +129,9 @@ const CommitmentNotificationTemplate = {
     const statusClassName = status === 'approved' ? 'alert-success' : 'alert-warning';
     
     return baseTemplate(`
-      <h2>Commitment Status Update</h2>
+      <h2>Commitment Update</h2>
       <p>Dear ${userName},</p>
-      <p>The status of your commitment for the deal <strong>${dealName}</strong> has been updated.</p>
+      <p>Your commitment for the deal <strong>${dealName}</strong> has been updated.</p>
       
       <div class="card">
         <h3 class="card-header">Commitment Details:</h3>
@@ -139,7 +139,7 @@ const CommitmentNotificationTemplate = {
           <li>Deal: ${dealName}</li>
           ${quantityHtml}
           <li>Total Price: $${totalPrice.toLocaleString()}</li>
-          <li>Status: <strong>${status.charAt(0).toUpperCase() + status.slice(1)}</strong></li>
+          <li>Status: <strong>${status.charAt(0).toUpperCase() + status.slice(1)}</strong> by the distributor</li>
         </ul>
       </div>
 

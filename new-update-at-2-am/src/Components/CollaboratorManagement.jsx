@@ -78,17 +78,17 @@ const CollaboratorManagement = () => {
     if (userRole === 'distributor') {
       return [
         ...baseRoles,
-        { value: 'deal_manager', label: 'Deal Manager', description: 'Manage deals and commitments' },
-        { value: 'supplier_manager', label: 'Supplier Manager', description: 'Add & manage suppliers' },
-        { value: 'media_manager', label: 'Media Manager', description: 'Handle assets and media' },
-        { value: 'manager', label: 'Manager', description: 'Full control of the account' }
+        { value: 'deal_manager', label: 'Deal Manager', description: 'Manage deals and related resources' },
+        // { value: 'supplier_manager', label: 'Supplier Manager', description: 'Add & manage suppliers' },
+        // { value: 'media_manager', label: 'Media Manager', description: 'Handle assets and media' },
+        { value: 'manager', label: 'Account Admin', description: 'Full control of the account' }
       ];
     } else if (userRole === 'member') {
       return [
         ...baseRoles,
         { value: 'commitment_manager', label: 'Commitment Manager', description: 'Manage commitments' },
-        { value: 'substore_manager', label: 'Substore Manager', description: 'Manage sub-stores' },
-        { value: 'manager', label: 'Manager', description: 'Full control of the account' }
+        // { value: 'substore_manager', label: 'Substore Manager', description: 'Manage sub-stores' },
+        { value: 'manager', label: 'Account Admin', description: 'Full control of the account' }
       ];
     }
 
@@ -221,10 +221,10 @@ const CollaboratorManagement = () => {
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
             <SecurityIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-            Collaborator Management
+            Staff Management
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage team members and their access levels for your account
+            Manage staff and their access levels for your account
           </Typography>
         </Box>
         <Button
@@ -234,7 +234,7 @@ const CollaboratorManagement = () => {
           disabled={!canPerformActions()}
           sx={{ minWidth: 150 }}
         >
-          Add Collaborator
+          Add Staff
         </Button>
       </Box>
 
@@ -253,17 +253,17 @@ const CollaboratorManagement = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Current Collaborators ({collaborators.length})
+            Current Staff ({collaborators.length})
           </Typography>
           
           {collaborators.length === 0 ? (
             <Box textAlign="center" py={4}>
               <PersonAddIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                No collaborators yet
+                No staff yet
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                Add team members to help manage your account
+                Add staff to help manage your account
               </Typography>
               <Button
                 variant="contained"
@@ -271,7 +271,7 @@ const CollaboratorManagement = () => {
                 onClick={() => setOpenDialog(true)}
                 disabled={!canPerformActions()}
               >
-                Add Your First Collaborator
+                Add Your First Staff
               </Button>
             </Box>
           ) : (
@@ -351,7 +351,7 @@ const CollaboratorManagement = () => {
       {/* Add/Edit Collaborator Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingCollaborator ? 'Edit Collaborator' : 'Add New Collaborator'}
+          {editingCollaborator ? 'Edit Staff' : 'Add New Staff'}
         </DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent>
@@ -423,7 +423,7 @@ const CollaboratorManagement = () => {
           <DialogActions>
             <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
             <Button type="submit" variant="contained">
-              {editingCollaborator ? 'Update' : 'Add'} Collaborator
+              {editingCollaborator ? 'Update' : 'Add'} Staff
             </Button>
           </DialogActions>
         </form>

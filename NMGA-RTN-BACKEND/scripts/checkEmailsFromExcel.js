@@ -2,7 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const XLSX = require('xlsx');
 const path = require('path');
-const User = require('./models/User');
+const User = require('../models/User');
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI, {

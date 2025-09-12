@@ -25,7 +25,6 @@ router.post('/', async (req, res) => {
     // Log the action
     await logCollaboratorAction(req, 'create_commitment', 'commitment', {
       dealTitle: req.body.dealTitle || 'Unknown Deal',
-      commitmentAmount: req.body.amount || 0
     });
     
     res.status(201).json(savedCommitment);
